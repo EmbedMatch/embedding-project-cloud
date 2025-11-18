@@ -1,44 +1,38 @@
-import { useEffect, useState } from 'react'
-import './App.css'
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Index from "./pages/Index";
+import Upload from "./pages/Upload";
+import Constraints from "./pages/Constraints";
+import Leaderboard from "./pages/Leaderboard";
+import Results from "./pages/Results";
+import Dashboard from "./pages/Dashboard";
+import NotFound from "./pages/NotFound";
+import Header from "./components/Header";
 
-function App() {
-  const [status, setStatus] = useState<{ status: string; message: string } | null>(null)
-  const [loading, setLoading] = useState(true)
+const queryClient = new QueryClient();
 
-  useEffect(() => {
-    fetch('http://localhost:8000/')
-      .then((res) => res.json())
-      .then((data) => {
-        setStatus(data)
-        setLoading(false)
-      })
-      .catch((err) => {
-        console.error('Failed to fetch API:', err)
-        setLoading(false)
-      })
-  }, [])
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Header />
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/upload" element={<Upload />} />
+          <Route path="/constraints" element={<Constraints />} />
+          <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/results" element={<Results />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
 
-  return (
-    <>
-      <div>
-        <h1>Embedding Model Selection Platform</h1>
-        <p>Find the best embedding model for your use case</p>
-      </div>
-      <div className="card">
-        <h2>Backend API Status</h2>
-        {loading ? (
-          <p>Loading...</p>
-        ) : status ? (
-          <div>
-            <p>Status: <strong>{status.status}</strong></p>
-            <p>{status.message}</p>
-          </div>
-        ) : (
-          <p style={{ color: 'red' }}>Failed to connect to backend</p>
-        )}
-      </div>
-    </>
-  )
-}
-
-export default App
+export default App;
