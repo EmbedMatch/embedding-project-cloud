@@ -28,7 +28,11 @@ async def upload_blob(
     content_type: str = "application/octet-stream",
 ) -> str:
     """Upload bytes to Azure Blob Storage and return the blob URL."""
-    blob_client = blob_service.get_blob_client(container=container, blob=blob_name)
+    container_client = blob_service.get_container_client(container)
+    if not container_client.exists():
+        container_client.create_container()
+
+    blob_client = container_client.get_blob_client(blob_name)
     blob_client.upload_blob(
         data,
         overwrite=True,

@@ -11,6 +11,7 @@ dependencies = [
     "azure-storage-blob>=12.25.0",
     "azure-cosmos>=4.9.0",
     "python-multipart>=0.0.20",
+    "openai>=1.82.0",
 ]
 
 [dependency-groups]

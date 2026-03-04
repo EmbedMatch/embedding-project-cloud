@@ -6,6 +6,8 @@ annotated-types==0.7.0
     # via pydantic
 anyio==4.12.1
     # via
+    #   httpx
+    #   openai
     #   starlette
     #   watchfiles
 azure-core==1.38.2
@@ -17,7 +19,10 @@ azure-cosmos==4.15.0
 azure-storage-blob==12.28.0
     # via embedding-model-platform (pyproject.toml)
 certifi==2026.2.25
-    # via requests
+    # via
+    #   httpcore
+    #   httpx
+    #   requests
 cffi==2.0.0
     # via cryptography
 charset-normalizer==3.4.4
@@ -26,24 +31,38 @@ click==8.3.1
     # via uvicorn
 cryptography==46.0.5
     # via azure-storage-blob
+distro==1.9.0
+    # via openai
 fastapi==0.135.1
     # via embedding-model-platform (pyproject.toml)
 h11==0.16.0
-    # via uvicorn
+    # via
+    #   httpcore
+    #   uvicorn
+httpcore==1.0.9
+    # via httpx
 httptools==0.7.1
     # via uvicorn
+httpx==0.28.1
+    # via openai
 idna==3.11
     # via
     #   anyio
+    #   httpx
     #   requests
 isodate==0.7.2
     # via azure-storage-blob
+jiter==0.13.0
+    # via openai
+openai==2.24.0
+    # via embedding-model-platform (pyproject.toml)
 pycparser==3.0
     # via cffi
 pydantic==2.12.5
     # via
     #   embedding-model-platform (pyproject.toml)
     #   fastapi
+    #   openai
     #   pydantic-settings
 pydantic-core==2.41.5
     # via pydantic
@@ -59,18 +78,21 @@ pyyaml==6.0.3
     # via uvicorn
 requests==2.32.5
     # via azure-core
+sniffio==1.3.1
+    # via openai
 starlette==0.52.1
     # via fastapi
+tqdm==4.67.3
+    # via openai
 typing-extensions==4.15.0
     # via
-    #   anyio
     #   azure-core
     #   azure-cosmos
     #   azure-storage-blob
     #   fastapi
+    #   openai
     #   pydantic
     #   pydantic-core
-    #   starlette
     #   typing-inspection
 typing-inspection==0.4.2
     # via

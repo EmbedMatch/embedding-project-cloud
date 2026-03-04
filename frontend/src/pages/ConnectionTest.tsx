@@ -7,6 +7,7 @@ type HealthResponse = {
   version: string;
   storage: string;
   cosmos: string;
+  llm: string;
   status: string;
 };
 
@@ -44,7 +45,10 @@ export default function ConnectionTest() {
       form.append("file", file);
       return fetch(`${API_URL}/uploads/`, { method: "POST", body: form }).then(
         async (r) => {
-          if (!r.ok) throw new Error(await r.text());
+          if (!r.ok) {
+            const body = await r.json().catch(async () => ({ detail: await r.text() }));
+            throw new Error(body.detail ?? JSON.stringify(body));
+          }
           return r.json();
         }
       );
@@ -71,7 +75,7 @@ export default function ConnectionTest() {
                 <tr key={k} className="py-1">
                   <td className="pr-4 text-muted-foreground capitalize py-1">{k}</td>
                   <td className="py-1">
-                    {k === "status" || k === "storage" || k === "cosmos" ? (
+                    {k === "status" || k === "storage" || k === "cosmos" || k === "llm" ? (
                       <StatusBadge value={String(v)} />
                     ) : (
                       <span className="font-mono">{String(v)}</span>
