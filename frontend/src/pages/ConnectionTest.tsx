@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -17,6 +17,10 @@ type UploadResponse = {
   filename: string;
 };
 
+type ChatResponse = {
+  reply: string;
+};
+
 function StatusBadge({ value }: { value: string }) {
   const ok = value === "ok";
   return (
@@ -32,6 +36,7 @@ function StatusBadge({ value }: { value: string }) {
 
 export default function ConnectionTest() {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [message, setMessage] = useState("");
 
   const health = useQuery<HealthResponse>({
     queryKey: ["health"],
@@ -53,6 +58,21 @@ export default function ConnectionTest() {
         }
       );
     },
+  });
+
+  const chat = useMutation<ChatResponse, Error, string>({
+    mutationFn: (msg) =>
+      fetch(`${API_URL}/chat/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg }),
+      }).then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(async () => ({ detail: await r.text() }));
+          throw new Error(body.detail ?? JSON.stringify(body));
+        }
+        return r.json();
+      }),
   });
 
   return (
@@ -92,6 +112,36 @@ export default function ConnectionTest() {
         >
           Refresh
         </button>
+      </section>
+
+      {/* LLM chat test */}
+      <section className="border rounded-lg p-4 space-y-3">
+        <h2 className="font-semibold text-lg">LLM Test</h2>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && message.trim()) chat.mutate(message);
+            }}
+            placeholder="Ask something…"
+            className="flex-1 border rounded px-3 py-1.5 text-sm"
+          />
+          <button
+            onClick={() => { if (message.trim()) chat.mutate(message); }}
+            disabled={chat.isPending || !message.trim()}
+            className="rounded bg-blue-600 text-white px-4 py-1.5 text-sm disabled:opacity-50"
+          >
+            {chat.isPending ? "…" : "Send"}
+          </button>
+        </div>
+        {chat.isError && (
+          <p className="text-red-600 text-sm">Error: {chat.error.message}</p>
+        )}
+        {chat.data && (
+          <p className="text-sm bg-gray-50 rounded p-3 whitespace-pre-wrap">{chat.data.reply}</p>
+        )}
       </section>
 
       {/* File upload test */}
