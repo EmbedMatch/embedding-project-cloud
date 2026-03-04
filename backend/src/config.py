@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Azure OpenAI
     azure_openai_endpoint: str
     azure_openai_api_key: str
-    azure_openai_deployment: str = "gpt-4o-mini"
+    azure_openai_deployment: str = "gpt-35-turbo"
 
     # CORS
     cors_origins: list[str] = ["http://localhost:5173"]
