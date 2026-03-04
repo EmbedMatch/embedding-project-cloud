@@ -6,6 +6,9 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useMutation } from "@tanstack/react-query";
+
+const API_URL = import.meta.env.VITE_API_URL ?? "";
 
 const Upload = () => {
   const [taskType, setTaskType] = useState<"retrieval" | "classification">("retrieval");
@@ -26,20 +29,12 @@ const Upload = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
     const file = e.dataTransfer.files[0];
     if (file && (file.type === "text/csv" || file.type === "application/json")) {
       setUploadedFile(file);
-      toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully.`,
-      });
+      toast({ title: "File selected", description: `${file.name} ready to upload.` });
     } else {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a CSV or JSON file.",
-        variant: "destructive",
-      });
+      toast({ title: "Invalid file type", description: "Please upload a CSV or JSON file.", variant: "destructive" });
     }
   };
 
@@ -47,18 +42,42 @@ const Upload = () => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFile(file);
-      toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully.`,
-      });
+      toast({ title: "File selected", description: `${file.name} ready to upload.` });
     }
   };
 
-  const handleContinue = () => {
-    if (uploadedFile) {
+  const continueFlow = useMutation({
+    mutationFn: async (file: File) => {
+      // 1. Upload file to blob storage
+      const form = new FormData();
+      form.append("file", file);
+      const uploadRes = await fetch(`${API_URL}/uploads/`, { method: "POST", body: form });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({ detail: "Upload failed" }));
+        throw new Error(err.detail ?? "Upload failed");
+      }
+      const { blob_name, url } = await uploadRes.json();
+
+      // 2. Create experiment
+      const expRes = await fetch(`${API_URL}/experiments/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task_type: taskType, blob_name, blob_url: url }),
+      });
+      if (!expRes.ok) {
+        const err = await expRes.json().catch(() => ({ detail: "Failed to create experiment" }));
+        throw new Error(err.detail ?? "Failed to create experiment");
+      }
+      return expRes.json();
+    },
+    onSuccess: (experiment) => {
+      localStorage.setItem("experimentId", experiment.id);
       navigate("/constraints");
-    }
-  };
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
 
   return (
     <div className="min-h-screen bg-gradient-hero pt-20 pb-12">
@@ -82,7 +101,7 @@ const Upload = () => {
                   Upload queries and documents. We'll evaluate how well models retrieve relevant documents.
                 </p>
                 <div className="mt-2 text-xs text-accent font-medium">
-                  Format: CSV/JSON with 'query' and 'document' fields
+                  Format: CSV/JSON with a 'text' or 'document' column
                 </div>
               </Label>
             </div>
@@ -105,7 +124,7 @@ const Upload = () => {
         {/* Upload Area */}
         <Card className="p-8 mb-6 shadow-elevation">
           <h2 className="text-2xl font-semibold mb-4">Upload Data File</h2>
-          
+
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -116,14 +135,8 @@ const Upload = () => {
                 : "border-border hover:border-primary/50"
             }`}
           >
-            <input
-              type="file"
-              accept=".csv,.json"
-              onChange={handleFileInput}
-              className="hidden"
-              id="file-upload"
-            />
-            
+            <input type="file" accept=".csv,.json" onChange={handleFileInput} className="hidden" id="file-upload" />
+
             {!uploadedFile ? (
               <>
                 <UploadIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
@@ -134,9 +147,7 @@ const Upload = () => {
                     <span>Browse Files</span>
                   </Button>
                 </Label>
-                <p className="text-sm text-muted-foreground mt-4">
-                  Supported formats: CSV, JSON (max 50MB)
-                </p>
+                <p className="text-sm text-muted-foreground mt-4">Supported formats: CSV, JSON (max 50MB)</p>
               </>
             ) : (
               <div className="flex items-center justify-center gap-4">
@@ -146,9 +157,7 @@ const Upload = () => {
                     <FileText className="w-5 h-5 text-primary" />
                     <span className="font-semibold text-lg">{uploadedFile.name}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    {(uploadedFile.size / 1024).toFixed(2)} KB
-                  </p>
+                  <p className="text-sm text-muted-foreground">{(uploadedFile.size / 1024).toFixed(2)} KB</p>
                 </div>
                 <Label htmlFor="file-upload">
                   <Button variant="outline" size="sm" asChild>
@@ -170,29 +179,28 @@ const Upload = () => {
                 Download Sample
               </Button>
             </div>
-            
+
             <div className="bg-muted/30 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-              <div className="text-muted-foreground mb-2">// Sample data structure</div>
+              <div className="text-muted-foreground mb-2">// Expected structure</div>
               {taskType === "retrieval" ? (
-                <pre>{`{
-  "queries": ["How to train neural networks?"],
-  "documents": ["A comprehensive guide to training..."],
-  "relevance_scores": [0.95]
-}`}</pre>
+                <pre>{`[
+  { "text": "A comprehensive guide to training neural networks..." },
+  { "text": "Introduction to transformer architectures..." }
+]`}</pre>
               ) : (
-                <pre>{`{
-  "text": ["This product is amazing!"],
-  "label": ["positive"]
-}`}</pre>
+                <pre>{`[
+  { "text": "This product is amazing!", "label": "positive" },
+  { "text": "Very disappointed with quality.", "label": "negative" }
+]`}</pre>
               )}
             </div>
 
             <div className="mt-4 p-4 bg-accent/5 border border-accent/20 rounded-lg flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-accent mt-0.5" />
               <div className="text-sm">
-                <div className="font-medium mb-1">Data Validation</div>
+                <div className="font-medium mb-1">Data Processing</div>
                 <p className="text-muted-foreground">
-                  Your data will be validated for correct format and completeness before benchmarking begins.
+                  Your file will be uploaded to Azure Blob Storage. The benchmark engine will automatically detect text columns and generate evaluation queries.
                 </p>
               </div>
             </div>
@@ -207,10 +215,10 @@ const Upload = () => {
           <Button
             variant="hero"
             size="lg"
-            onClick={handleContinue}
-            disabled={!uploadedFile}
+            onClick={() => uploadedFile && continueFlow.mutate(uploadedFile)}
+            disabled={!uploadedFile || continueFlow.isPending}
           >
-            Continue to Constraints
+            {continueFlow.isPending ? "Uploading…" : "Continue to Constraints"}
           </Button>
         </div>
       </div>

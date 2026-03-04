@@ -12,7 +12,7 @@ from openai import AzureOpenAI
 from src.config import get_settings
 from src.cosmos import get_cosmos_client
 from src.openai_client import get_openai_client
-from src.routers import chat, uploads
+from src.routers import chat, experiments, models_catalog, uploads
 from src.storage import get_blob_service
 
 settings = get_settings()
@@ -33,6 +33,8 @@ app.add_middleware(
 
 app.include_router(uploads.router)
 app.include_router(chat.router)
+app.include_router(experiments.router)
+app.include_router(models_catalog.router)
 
 
 @app.get("/")

@@ -14,9 +14,12 @@ azure-core==1.38.2
     # via
     #   azure-cosmos
     #   azure-storage-blob
+    #   azure-storage-queue
 azure-cosmos==4.15.0
     # via embedding-model-platform (pyproject.toml)
 azure-storage-blob==12.28.0
+    # via embedding-model-platform (pyproject.toml)
+azure-storage-queue==12.15.0
     # via embedding-model-platform (pyproject.toml)
 certifi==2026.2.25
     # via
@@ -30,7 +33,9 @@ charset-normalizer==3.4.4
 click==8.3.1
     # via uvicorn
 cryptography==46.0.5
-    # via azure-storage-blob
+    # via
+    #   azure-storage-blob
+    #   azure-storage-queue
 distro==1.9.0
     # via openai
 fastapi==0.135.1
@@ -51,7 +56,9 @@ idna==3.11
     #   httpx
     #   requests
 isodate==0.7.2
-    # via azure-storage-blob
+    # via
+    #   azure-storage-blob
+    #   azure-storage-queue
 jiter==0.13.0
     # via openai
 openai==2.24.0
@@ -89,6 +96,7 @@ typing-extensions==4.15.0
     #   azure-core
     #   azure-cosmos
     #   azure-storage-blob
+    #   azure-storage-queue
     #   fastapi
     #   openai
     #   pydantic
