@@ -1,5 +1,6 @@
 """Azure Blob Storage service."""
 
+from azure.core.exceptions import ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient, ContentSettings
 from fastapi import Depends, HTTPException, status
 
@@ -29,13 +30,19 @@ async def upload_blob(
 ) -> str:
     """Upload bytes to Azure Blob Storage and return the blob URL."""
     container_client = blob_service.get_container_client(container)
-    if not container_client.exists():
-        container_client.create_container()
-
     blob_client = container_client.get_blob_client(blob_name)
-    blob_client.upload_blob(
-        data,
-        overwrite=True,
-        content_settings=ContentSettings(content_type=content_type),
-    )
+    try:
+        blob_client.upload_blob(
+            data,
+            overwrite=True,
+            content_settings=ContentSettings(content_type=content_type),
+        )
+    except ResourceNotFoundError:
+        # Container doesn't exist yet — create it and retry
+        container_client.create_container()
+        blob_client.upload_blob(
+            data,
+            overwrite=True,
+            content_settings=ContentSettings(content_type=content_type),
+        )
     return blob_client.url
