@@ -80,7 +80,7 @@ const mockModels: Model[] = [
 
 const Leaderboard = () => {
   const navigate = useNavigate();
-  const [models, setModels] = useState<Model[]>(mockModels);
+  const [models] = useState<Model[]>(mockModels);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"score" | "size" | "cost">("score");
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
