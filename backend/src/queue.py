@@ -1,7 +1,7 @@
 """Azure Storage Queue client for dispatching benchmark jobs."""
 
 from azure.core.exceptions import ResourceExistsError
-from azure.storage.queue import QueueServiceClient
+from azure.storage.queue import QueueServiceClient, TextBase64EncodePolicy
 from fastapi import Depends
 
 from src.config import Settings, get_settings
@@ -10,7 +10,10 @@ QUEUE_NAME = "benchmark-jobs"
 
 
 def get_queue_service(settings: Settings = Depends(get_settings)) -> QueueServiceClient:
-    return QueueServiceClient.from_connection_string(settings.azure_storage_connection_string)
+    return QueueServiceClient.from_connection_string(
+        settings.azure_storage_connection_string,
+        message_encode_policy=TextBase64EncodePolicy(),
+    )
 
 
 def enqueue_benchmark_job(queue_service: QueueServiceClient, experiment_id: str) -> None:

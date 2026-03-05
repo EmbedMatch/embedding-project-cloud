@@ -220,7 +220,9 @@ def _benchmark_model(
     connection="AZURE_STORAGE_CONNECTION_STRING",
 )
 def benchmark(msg: func.QueueMessage) -> None:
-    experiment_id = msg.get_body().decode("utf-8").strip()
+    raw_body = msg.get_body()
+    logger.info("Queue message received, raw bytes: %r", raw_body[:200])
+    experiment_id = raw_body.decode("utf-8").strip().strip('"')
     logger.info("Starting benchmark for experiment %s", experiment_id)
 
     container = _cosmos_container()

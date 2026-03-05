@@ -15,7 +15,7 @@
   "extensions": {
     "queues": {
       "visibilityTimeout": "00:10:00",
-      "maxDequeueCount": 3
+      "maxDequeueCount": 5
     }
   },
   "functionTimeout": "00:10:00"
