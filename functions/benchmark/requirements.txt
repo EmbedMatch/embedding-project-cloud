@@ -3,7 +3,4 @@ azure-cosmos>=4.9.0
 azure-storage-blob>=12.25.0
 openai>=1.82.0
 numpy>=2.0.0
-torch
-sentence-transformers
-transformers
-tokenizers
+fastembed

@@ -28,7 +28,7 @@ _CATALOG: list[EmbeddingModel] = [
         size_mb=1200,
         provider="azure_openai",
     ),
-    # ── Open-source (sentence-transformers, run locally in Function App) ──
+    # ── Open-source (ONNX Runtime via fastembed, run locally in Function App) ──
     EmbeddingModel(
         name="MiniLM-L6-v2",
         deployment="sentence-transformers/all-MiniLM-L6-v2",
@@ -48,11 +48,11 @@ _CATALOG: list[EmbeddingModel] = [
         provider="sentence_transformers",
     ),
     EmbeddingModel(
-        name="MPNet Base v2",
-        deployment="sentence-transformers/all-mpnet-base-v2",
+        name="BGE Base EN v1.5",
+        deployment="BAAI/bge-base-en-v1.5",
         dimensions=768,
         cost_per_m_tokens=0.00,
-        mteb_score=57.8,
+        mteb_score=63.6,
         size_mb=420,
         provider="sentence_transformers",
     ),

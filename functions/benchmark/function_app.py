@@ -1,8 +1,8 @@
 """Azure Function: queue-triggered benchmark engine.
 
 Reads experiment_id from the 'benchmark-jobs' storage queue, runs the
-embedding benchmark using Azure OpenAI or local sentence-transformers models,
-and writes results back to Cosmos DB.
+embedding benchmark using Azure OpenAI or local open-source models (via
+fastembed/ONNX Runtime), and writes results back to Cosmos DB.
 """
 
 import gc
@@ -13,9 +13,8 @@ import os
 import time
 from typing import Any
 
-# Set HuggingFace cache dirs before any transformers imports
-os.environ.setdefault("TRANSFORMERS_CACHE", "/home/hf_cache")
-os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", "/home/hf_cache")
+# Cache dir for ONNX model files (persistent across restarts on App Service)
+os.environ.setdefault("FASTEMBED_CACHE_PATH", "/home/hf_cache")
 
 import azure.functions as func
 import numpy as np
@@ -27,44 +26,44 @@ app = func.FunctionApp()
 
 logger = logging.getLogger(__name__)
 
-# ── Local sentence-transformers support ──────────────────────────────────────
+# ── Local open-source model support (via fastembed / ONNX Runtime) ───────────
 
 LOCAL_MODEL_METADATA: dict[str, dict[str, Any]] = {
     "sentence-transformers/all-MiniLM-L6-v2": {"cost_per_m_tokens": 0.00, "dimensions": 384},
     "BAAI/bge-small-en-v1.5": {"cost_per_m_tokens": 0.00, "dimensions": 384},
-    "sentence-transformers/all-mpnet-base-v2": {"cost_per_m_tokens": 0.00, "dimensions": 768},
+    "BAAI/bge-base-en-v1.5": {"cost_per_m_tokens": 0.00, "dimensions": 768},
 }
 
-_st_model_cache: dict[str, Any] = {}
+_local_model_cache: dict[str, Any] = {}
 
 
 def _is_local_model(model_id: str) -> bool:
     return model_id in LOCAL_MODEL_METADATA
 
 
-def _get_st_model(model_id: str) -> Any:
-    """Load a sentence-transformers model, keeping only one in memory at a time."""
-    global _st_model_cache
-    if model_id in _st_model_cache:
-        return _st_model_cache[model_id]
+def _get_local_model(model_id: str) -> Any:
+    """Load a fastembed model, keeping only one in memory at a time."""
+    global _local_model_cache
+    if model_id in _local_model_cache:
+        return _local_model_cache[model_id]
 
     # Evict previous model to keep memory bounded
-    for old_id in list(_st_model_cache.keys()):
-        del _st_model_cache[old_id]
+    for old_id in list(_local_model_cache.keys()):
+        del _local_model_cache[old_id]
     gc.collect()
 
-    from sentence_transformers import SentenceTransformer
-    logger.info("Loading sentence-transformers model: %s", model_id)
-    model = SentenceTransformer(model_id)
-    _st_model_cache[model_id] = model
+    from fastembed import TextEmbedding
+    logger.info("Loading ONNX model via fastembed: %s", model_id)
+    model = TextEmbedding(model_id, cache_dir=os.environ.get("FASTEMBED_CACHE_PATH"))
+    _local_model_cache[model_id] = model
     return model
 
 
 def _embed_local(model_id: str, texts: list[str]) -> list[list[float]]:
-    """Embed texts using a local sentence-transformers model."""
-    model = _get_st_model(model_id)
-    embeddings = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
-    return embeddings.tolist()
+    """Embed texts using a local ONNX model via fastembed."""
+    model = _get_local_model(model_id)
+    embeddings = list(model.embed(texts))
+    return [e.tolist() for e in embeddings]
 
 # ── Azure clients (initialised once per cold start) ──────────────────────────
 

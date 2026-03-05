@@ -15,25 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Bundle Python packages (torch CPU + sentence-transformers)
+      - name: Bundle Python packages (fastembed + ONNX Runtime)
         run: |
-          pip install -q torch --index-url https://download.pytorch.org/whl/cpu -t fn_pkgs
           pip install -q -t fn_pkgs \
             azure-functions \
             "azure-cosmos>=4.9.0" \
             "azure-storage-blob>=12.25.0" \
             "openai>=1.82.0" \
             "numpy>=2.0.0" \
-            sentence-transformers \
-            transformers \
-            tokenizers
-
-      - name: Slim torch to reduce zip size
-        run: |
-          rm -rf fn_pkgs/torch/test fn_pkgs/torch/_inductor fn_pkgs/torch/cuda \
-                 fn_pkgs/torch/backends/cuda* fn_pkgs/torch/include
-          find fn_pkgs -name "*.pyc" -delete
-          find fn_pkgs -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+            fastembed
 
       - name: Build deployment zip
         run: |
