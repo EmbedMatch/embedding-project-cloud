@@ -258,8 +258,16 @@ def benchmark(msg: func.QueueMessage) -> None:
             "text-embedding-3-large": {"cost_per_m_tokens": 0.13, "dimensions": 3072},
             **LOCAL_MODEL_METADATA,
         }
-        for model_deployment in item.get("selected_models", []):
-            logger.info("Benchmarking model: %s", model_deployment)
+        selected = item.get("selected_models", [])
+        for i, model_deployment in enumerate(selected):
+            logger.info("Benchmarking model %d/%d: %s", i + 1, len(selected), model_deployment)
+            item["progress"] = {
+                "current_model": model_deployment,
+                "completed_models": i,
+                "total_models": len(selected),
+            }
+            container.upsert_item(item)
+
             metrics = _benchmark_model(model_deployment, docs, queries, openai, chat_deployment)
             meta = model_metadata.get(model_deployment, {"cost_per_m_tokens": 0.10, "dimensions": 1536})
             results.append({
@@ -269,8 +277,9 @@ def benchmark(msg: func.QueueMessage) -> None:
                 "cost_per_m_tokens": meta["cost_per_m_tokens"],
                 "dimensions": meta["dimensions"],
             })
+            item["results"] = results
 
-        item["results"] = results
+        item["progress"] = None
         item["status"] = "completed"
 
     except Exception as exc:

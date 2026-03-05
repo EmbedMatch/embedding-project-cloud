@@ -1,0 +1,43 @@
+@startuml architecture
+skinparam backgroundColor white
+skinparam defaultFontSize 13
+skinparam componentStyle rectangle
+skinparam padding 4
+skinparam nodesep 40
+skinparam ranksep 35
+skinparam shadowing false
+
+skinparam component {
+  BackgroundColor #F8FAFC
+  BorderColor #94A3B8
+  FontColor #1E293B
+}
+
+component "**React Frontend**\nVite + Tailwind\n<i>App Service</i>" as FE #DBEAFE
+component "**FastAPI Backend**\nPython 3.12\n<i>App Service</i>" as BE #E0E7FF
+
+component "**Blob Storage**\nuploads container" as BLOB #FEF3C7
+component "**Cosmos DB**\nexperiments" as COSMOS #FEF3C7
+component "**Storage Queue**\nbenchmark-jobs" as QUEUE #FEF3C7
+
+component "**Function App**\nBenchmark Engine\n<i>B1 App Service Plan</i>" as FN #DCFCE7
+
+component "**Azure OpenAI**\nSweden Central\ngpt-4o-mini, ada-002\ntext-embedding-3-large" as OAI #FCE7F3
+
+component "**ONNX Runtime**\nfastembed\nMiniLM, BGE" as ONNX #DCFCE7
+
+FE -right-> BE : REST API\n(JSON/HTTPS)
+
+BE -down-> BLOB : Upload files
+BE -down-> COSMOS : Create/read\nexperiments
+BE -down-> QUEUE : Enqueue job
+BE -down-> OAI : Chat endpoint
+
+QUEUE -right-> FN : Queue trigger
+
+FN -up-> COSMOS : Write results
+FN -down-> BLOB : Download file
+FN -left-> OAI : API embeddings\n+ LLM judge
+FN -right-> ONNX : Local embeddings\n(CPU)
+
+@enduml

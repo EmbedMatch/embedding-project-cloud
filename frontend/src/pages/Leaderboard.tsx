@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
-import { Search, ArrowUpDown, CheckCircle2, PlayCircle, Loader2 } from "lucide-react";
+import { Search, ArrowUpDown, CheckCircle2, PlayCircle, Loader2, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
@@ -39,10 +39,17 @@ const Leaderboard = () => {
     queryFn: () => fetch(`${API_URL}/models/?${params}`).then((r) => r.json()),
   });
 
+  const experimentId = localStorage.getItem("experimentId");
+  const hasExperiment = !!experimentId;
+
   const startBenchmark = useMutation({
     mutationFn: async () => {
-      const experimentId = localStorage.getItem("experimentId");
       if (!experimentId) throw new Error("No experiment found. Please upload data first.");
+      // Verify experiment exists and has a blob
+      const checkRes = await fetch(`${API_URL}/experiments/${experimentId}`);
+      if (!checkRes.ok) throw new Error("Experiment not found. Please upload data first.");
+      const exp = await checkRes.json();
+      if (!exp.blob_name) throw new Error("No data file uploaded. Please upload data first.");
       const res = await fetch(`${API_URL}/experiments/${experimentId}/benchmark`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -111,6 +118,17 @@ const Leaderboard = () => {
             </Select>
           </div>
         </Card>
+
+        {!hasExperiment && (
+          <Card className="p-4 mb-6 shadow-elevation bg-yellow-50 border-yellow-200">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-600" />
+              <span className="text-sm text-yellow-800">
+                No data uploaded yet. <button className="underline font-medium" onClick={() => navigate("/upload")}>Upload a file</button> first to run a benchmark.
+              </span>
+            </div>
+          </Card>
+        )}
 
         {selectedDeployments.length > 0 && (
           <Card className="p-4 mb-6 shadow-elevation bg-primary/5 border-primary/20">
