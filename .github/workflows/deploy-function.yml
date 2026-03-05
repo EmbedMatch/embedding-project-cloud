@@ -1,0 +1,49 @@
+name: Deploy Function App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/**"
+      - ".github/workflows/deploy-function.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bundle Python packages for Python 3.12
+        run: |
+          pip install -q -t fn_pkgs \
+            azure-functions \
+            "azure-cosmos>=4.9.0" \
+            "azure-storage-blob>=12.25.0" \
+            "openai>=1.82.0" \
+            "numpy>=2.0.0"
+
+      - name: Build deployment zip
+        run: |
+          mkdir -p fn-bundle/.python_packages/lib/site-packages
+          cp -r fn_pkgs/* fn-bundle/.python_packages/lib/site-packages/
+          cp functions/benchmark/function_app.py fn-bundle/
+          cp functions/benchmark/host.json fn-bundle/
+          cp functions/benchmark/requirements.txt fn-bundle/
+          cd fn-bundle && zip -r ../function.zip . -x "*.pyc" -x "*/__pycache__/*"
+
+      - name: Deploy via Kudu zip deploy
+        run: |
+          CREDS=$(echo '${{ secrets.AZURE_FUNCTION_PUBLISH_PROFILE }}' | \
+            python3 -c "
+          import sys, xml.etree.ElementTree as ET
+          root = ET.fromstring(sys.stdin.read())
+          p = root.find('.//publishProfile[@publishMethod=\"MSDeploy\"]')
+          print(f\"{p.get('userName')}:{p.get('userPWD')}\")
+          ")
+          curl -sf -X POST \
+            "https://embed-benchmark-fn.scm.azurewebsites.net/api/zipdeploy" \
+            -u "$CREDS" \
+            --data-binary @function.zip \
+            -H "Content-Type: application/zip"

@@ -2,11 +2,18 @@ import { useState } from "react";
 import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
+
+const SAMPLE_DATASETS = [
+  { name: "Tech Articles", file: "/samples/tech-articles.csv", description: "50 ML & software engineering snippets" },
+  { name: "Product Reviews", file: "/samples/product-reviews.csv", description: "50 e-commerce product descriptions" },
+  { name: "News Headlines", file: "/samples/news-headlines.csv", description: "50 news article summaries" },
+];
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
 
@@ -93,12 +100,12 @@ const Upload = () => {
         <Card className="p-8 mb-6 shadow-elevation">
           <h2 className="text-2xl font-semibold mb-4">Select Task Type</h2>
           <RadioGroup value={taskType} onValueChange={(v) => setTaskType(v as any)} className="gap-4">
-            <div className="flex items-start space-x-3 p-4 border-2 border-border rounded-lg hover:border-primary transition-colors cursor-pointer">
+            <div className="flex items-start space-x-3 p-4 border-2 border-primary rounded-lg bg-primary/5 cursor-pointer">
               <RadioGroupItem value="retrieval" id="retrieval" className="mt-1" />
               <Label htmlFor="retrieval" className="cursor-pointer flex-1">
                 <div className="font-semibold text-lg mb-1">Retrieval</div>
                 <p className="text-sm text-muted-foreground">
-                  Upload queries and documents. We'll evaluate how well models retrieve relevant documents.
+                  Upload your documents. We'll evaluate how well models retrieve relevant results using GPT-4o-mini as judge.
                 </p>
                 <div className="mt-2 text-xs text-accent font-medium">
                   Format: CSV/JSON with a 'text' or 'document' column
@@ -106,16 +113,16 @@ const Upload = () => {
               </Label>
             </div>
 
-            <div className="flex items-start space-x-3 p-4 border-2 border-border rounded-lg hover:border-primary transition-colors cursor-pointer">
-              <RadioGroupItem value="classification" id="classification" className="mt-1" />
-              <Label htmlFor="classification" className="cursor-pointer flex-1">
-                <div className="font-semibold text-lg mb-1">Classification</div>
+            <div className="flex items-start space-x-3 p-4 border-2 border-border rounded-lg opacity-50 cursor-not-allowed">
+              <RadioGroupItem value="classification" id="classification" className="mt-1" disabled />
+              <Label htmlFor="classification" className="cursor-not-allowed flex-1">
+                <div className="flex items-center gap-2 font-semibold text-lg mb-1">
+                  Classification
+                  <Badge variant="secondary" className="text-xs">Coming soon</Badge>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   Upload labeled examples. We'll test classification accuracy across models.
                 </p>
-                <div className="mt-2 text-xs text-accent font-medium">
-                  Format: CSV/JSON with 'text' and 'label' fields
-                </div>
               </Label>
             </div>
           </RadioGroup>
@@ -169,43 +176,40 @@ const Upload = () => {
           </div>
         </Card>
 
-        {/* Data Preview */}
-        {uploadedFile && (
-          <Card className="p-8 mb-6 shadow-elevation">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold">Data Preview</h2>
-              <Button variant="ghost" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Download Sample
-              </Button>
-            </div>
+        {/* Sample Datasets */}
+        <Card className="p-8 mb-6 shadow-elevation">
+          <h2 className="text-2xl font-semibold mb-2">Sample Datasets</h2>
+          <p className="text-muted-foreground mb-4">Download a ready-to-use dataset to try the benchmark right away.</p>
+          <div className="grid md:grid-cols-3 gap-3">
+            {SAMPLE_DATASETS.map((ds) => (
+              <a
+                key={ds.file}
+                href={ds.file}
+                download
+                className="flex items-center gap-3 p-4 border border-border rounded-lg hover:border-primary/50 hover:bg-muted/30 transition-all group"
+              >
+                <FileText className="w-8 h-8 text-primary shrink-0 group-hover:scale-110 transition-transform" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm">{ds.name}</div>
+                  <div className="text-xs text-muted-foreground">{ds.description}</div>
+                </div>
+                <Download className="w-4 h-4 text-muted-foreground shrink-0" />
+              </a>
+            ))}
+          </div>
 
-            <div className="bg-muted/30 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-              <div className="text-muted-foreground mb-2">// Expected structure</div>
-              {taskType === "retrieval" ? (
-                <pre>{`[
-  { "text": "A comprehensive guide to training neural networks..." },
-  { "text": "Introduction to transformer architectures..." }
-]`}</pre>
-              ) : (
-                <pre>{`[
-  { "text": "This product is amazing!", "label": "positive" },
-  { "text": "Very disappointed with quality.", "label": "negative" }
-]`}</pre>
-              )}
-            </div>
+          <div className="mt-4 p-4 bg-muted/30 rounded-lg font-mono text-sm">
+            <div className="text-muted-foreground mb-1">// Expected CSV format</div>
+            <pre>{`text\n"Your document text goes here..."\n"Another document..."`}</pre>
+          </div>
 
-            <div className="mt-4 p-4 bg-accent/5 border border-accent/20 rounded-lg flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-accent mt-0.5" />
-              <div className="text-sm">
-                <div className="font-medium mb-1">Data Processing</div>
-                <p className="text-muted-foreground">
-                  Your file will be uploaded to Azure Blob Storage. The benchmark engine will automatically detect text columns and generate evaluation queries.
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
+          <div className="mt-4 p-3 bg-accent/5 border border-accent/20 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-accent mt-0.5 shrink-0" />
+            <p className="text-sm text-muted-foreground">
+              The benchmark engine auto-detects the text column. Minimum 10 rows recommended.
+            </p>
+          </div>
+        </Card>
 
         {/* Continue Button */}
         <div className="flex justify-end gap-4">

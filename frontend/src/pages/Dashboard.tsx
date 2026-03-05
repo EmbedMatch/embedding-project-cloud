@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { LayoutDashboard, Plus, TrendingUp, Clock, BarChart3, FileText, Award, Loader2 } from "lucide-react";
+import { LayoutDashboard, Plus, TrendingUp, Clock, BarChart3, Award, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -43,7 +43,7 @@ const Dashboard = () => {
     { label: "Total Experiments", value: String(experiments.length), icon: BarChart3, color: "text-primary" },
     { label: "Models Tested", value: String(totalModels), icon: TrendingUp, color: "text-accent" },
     { label: "Avg. Best Score", value: completed.length > 0 ? `${(avgScore * 100).toFixed(1)}%` : "—", icon: Award, color: "text-primary" },
-    { label: "Completed", value: String(completed.length), icon: FileText, color: "text-accent" },
+    { label: "Completed", value: String(completed.length), icon: BarChart3, color: "text-accent" },
   ];
 
   const handleExperimentClick = (experiment: Experiment) => {
@@ -151,7 +151,7 @@ const Dashboard = () => {
           </div>
         </Card>
 
-        <div className="grid md:grid-cols-3 gap-6 mt-8">
+        <div className="grid md:grid-cols-2 gap-6 mt-8">
           <Card className="p-6 shadow-elevation hover:shadow-glow transition-all cursor-pointer group" onClick={() => navigate("/upload")}>
             <Plus className="w-10 h-10 text-primary mb-4 group-hover:scale-110 transition-transform" />
             <h3 className="text-xl font-semibold mb-2">New Benchmark</h3>
@@ -164,11 +164,6 @@ const Dashboard = () => {
             <p className="text-sm text-muted-foreground">Explore available Azure OpenAI embedding models</p>
           </Card>
 
-          <Card className="p-6 shadow-elevation hover:shadow-glow transition-all cursor-pointer group">
-            <FileText className="w-10 h-10 text-primary mb-4 group-hover:scale-110 transition-transform" />
-            <h3 className="text-xl font-semibold mb-2">Documentation</h3>
-            <p className="text-sm text-muted-foreground">Learn how to optimize your benchmarks</p>
-          </Card>
         </div>
       </div>
     </div>

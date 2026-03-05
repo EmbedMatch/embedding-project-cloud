@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
 
 const Header = () => {
   return (
@@ -11,28 +10,16 @@ const Header = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-8">
-          <a href="/#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Features
-          </a>
-          <a href="/#how-it-works" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            How It Works
-          </a>
-          <a href="/leaderboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-            Leaderboard
-          </a>
           <a href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             Dashboard
+          </a>
+          <a href="/leaderboard" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Models
           </a>
         </div>
 
         <div className="flex items-center gap-4">
-          <Button variant="ghost" className="hidden md:inline-flex">
-            Sign In
-          </Button>
           <Button variant="hero" onClick={() => window.location.href = '/upload'}>Get Started</Button>
-          <Button variant="ghost" size="icon" className="md:hidden">
-            <Menu className="w-5 h-5" />
-          </Button>
         </div>
       </nav>
     </header>

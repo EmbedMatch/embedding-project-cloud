@@ -1,6 +1,4 @@
 import Hero from "@/components/Hero";
-import Features from "@/components/Features";
-import HowItWorks from "@/components/HowItWorks";
 import CTA from "@/components/CTA";
 
 const Index = () => {
@@ -8,8 +6,6 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <main>
         <Hero />
-        <Features />
-        <HowItWorks />
         <CTA />
       </main>
       <footer className="border-t border-border py-12 bg-muted/30">
