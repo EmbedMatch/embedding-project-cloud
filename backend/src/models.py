@@ -34,8 +34,9 @@ class Experiment(BaseModel):
 
 class EmbeddingModel(BaseModel):
     name: str            # display name
-    deployment: str      # Azure OpenAI deployment name
+    deployment: str      # Azure OpenAI deployment name or HuggingFace model ID
     dimensions: int
     cost_per_m_tokens: float
     mteb_score: float    # approximate MTEB average score
     size_mb: float       # approximate model size
+    provider: str = "azure_openai"  # "azure_openai" or "sentence_transformers"

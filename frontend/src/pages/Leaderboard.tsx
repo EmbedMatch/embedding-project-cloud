@@ -17,6 +17,7 @@ interface EmbeddingModel {
   cost_per_m_tokens: number;
   mteb_score: number;
   size_mb: number;
+  provider: string;
 }
 
 const Leaderboard = () => {
@@ -159,7 +160,9 @@ const Leaderboard = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-xl font-semibold">{model.name}</h3>
-                      <Badge variant="secondary">Azure OpenAI</Badge>
+                      <Badge variant={model.provider === "azure_openai" ? "secondary" : "outline"}>
+                        {model.provider === "azure_openai" ? "Azure OpenAI" : "Open Source"}
+                      </Badge>
                       {selectedDeployments.includes(model.deployment) && (
                         <Badge className="bg-primary">Selected</Badge>
                       )}
@@ -179,7 +182,9 @@ const Leaderboard = () => {
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground mb-1">Cost</div>
-                        <div className="text-lg font-semibold text-accent">${model.cost_per_m_tokens}/M</div>
+                        <div className="text-lg font-semibold text-accent">
+                          {model.cost_per_m_tokens === 0 ? "Free" : `$${model.cost_per_m_tokens}/M`}
+                        </div>
                       </div>
                     </div>
                   </div>

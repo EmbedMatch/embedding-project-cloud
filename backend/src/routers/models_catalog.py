@@ -6,9 +6,10 @@ from src.models import EmbeddingModel
 
 router = APIRouter(prefix="/models", tags=["models"])
 
-# Curated catalog of Azure OpenAI embedding models available in this deployment.
-# Metadata sourced from MTEB leaderboard and Azure OpenAI pricing (March 2025).
+# Curated catalog of embedding models: Azure OpenAI (API) + open-source (sentence-transformers).
+# MTEB scores from https://huggingface.co/spaces/mteb/leaderboard
 _CATALOG: list[EmbeddingModel] = [
+    # ── Azure OpenAI (API-based) ──
     EmbeddingModel(
         name="Ada 002",
         deployment="text-embedding-ada-002",
@@ -16,6 +17,7 @@ _CATALOG: list[EmbeddingModel] = [
         cost_per_m_tokens=0.10,
         mteb_score=61.0,
         size_mb=500,
+        provider="azure_openai",
     ),
     EmbeddingModel(
         name="Text Embedding 3 Large",
@@ -24,6 +26,35 @@ _CATALOG: list[EmbeddingModel] = [
         cost_per_m_tokens=0.13,
         mteb_score=64.6,
         size_mb=1200,
+        provider="azure_openai",
+    ),
+    # ── Open-source (sentence-transformers, run locally in Function App) ──
+    EmbeddingModel(
+        name="MiniLM-L6-v2",
+        deployment="sentence-transformers/all-MiniLM-L6-v2",
+        dimensions=384,
+        cost_per_m_tokens=0.00,
+        mteb_score=56.3,
+        size_mb=80,
+        provider="sentence_transformers",
+    ),
+    EmbeddingModel(
+        name="BGE Small EN v1.5",
+        deployment="BAAI/bge-small-en-v1.5",
+        dimensions=384,
+        cost_per_m_tokens=0.00,
+        mteb_score=62.2,
+        size_mb=130,
+        provider="sentence_transformers",
+    ),
+    EmbeddingModel(
+        name="MPNet Base v2",
+        deployment="sentence-transformers/all-mpnet-base-v2",
+        dimensions=768,
+        cost_per_m_tokens=0.00,
+        mteb_score=57.8,
+        size_mb=420,
+        provider="sentence_transformers",
     ),
 ]
 
