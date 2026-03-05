@@ -64,6 +64,10 @@ def start_benchmark(
     item["selected_models"] = req.selected_models
     item["constraints"] = req.constraints.model_dump()
     item["status"] = "pending"
+    item["results"] = []
+    item["progress"] = None
+    item["error"] = None
+    item["created_at"] = datetime.now(timezone.utc).isoformat()
     container.upsert_item(item)
 
     enqueue_benchmark_job(queue_service, experiment_id)
