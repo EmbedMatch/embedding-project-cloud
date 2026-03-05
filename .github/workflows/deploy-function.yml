@@ -35,15 +35,20 @@ jobs:
 
       - name: Deploy via Kudu zip deploy
         run: |
-          CREDS=$(echo '${{ secrets.AZURE_FUNCTION_PUBLISH_PROFILE }}' | \
+          eval "$(echo '${{ secrets.AZURE_FUNCTION_PUBLISH_PROFILE }}' | \
             python3 -c "
           import sys, xml.etree.ElementTree as ET
           root = ET.fromstring(sys.stdin.read())
           p = root.find('.//publishProfile[@publishMethod=\"MSDeploy\"]')
-          print(f\"{p.get('userName')}:{p.get('userPWD')}\")
-          ")
+          user = p.get('userName')
+          pwd = p.get('userPWD')
+          url = p.get('publishUrl')
+          print(f'KUDU_USER=\"{user}\"')
+          print(f'KUDU_PASS=\"{pwd}\"')
+          print(f'SCM_HOST=\"{url}\"')
+          ")"
           curl -sf -X POST \
-            "https://embed-benchmark-fn.scm.azurewebsites.net/api/zipdeploy" \
-            -u "$CREDS" \
+            "https://${SCM_HOST}/api/zipdeploy" \
+            -u "${KUDU_USER}:${KUDU_PASS}" \
             --data-binary @function.zip \
             -H "Content-Type: application/zip"

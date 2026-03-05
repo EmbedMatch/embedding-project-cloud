@@ -34,17 +34,22 @@ jobs:
 
       - name: Deploy via Kudu zip deploy
         run: |
-          # Extract SCM credentials from publish profile XML
-          CREDS=$(echo '${{ secrets.AZURE_BACKEND_PUBLISH_PROFILE }}' | \
+          # Extract SCM credentials and URL from publish profile XML
+          eval "$(echo '${{ secrets.AZURE_BACKEND_PUBLISH_PROFILE }}' | \
             python3 -c "
           import sys, xml.etree.ElementTree as ET
           root = ET.fromstring(sys.stdin.read())
           p = root.find('.//publishProfile[@publishMethod=\"MSDeploy\"]')
-          print(f\"{p.get('userName')}:{p.get('userPWD')}\")
-          ")
+          user = p.get('userName')
+          pwd = p.get('userPWD')
+          url = p.get('publishUrl')
+          print(f'KUDU_USER=\"{user}\"')
+          print(f'KUDU_PASS=\"{pwd}\"')
+          print(f'SCM_HOST=\"{url}\"')
+          ")"
           # Use Kudu zip deploy (triggers Oryx build / pip install)
           curl -sf -X POST \
-            "https://embed-match-web.scm.azurewebsites.net/api/zipdeploy" \
-            -u "$CREDS" \
+            "https://${SCM_HOST}/api/zipdeploy" \
+            -u "${KUDU_USER}:${KUDU_PASS}" \
             --data-binary @backend.zip \
             -H "Content-Type: application/zip"
