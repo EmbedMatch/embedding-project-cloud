@@ -26,7 +26,7 @@ const Upload = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
+
     const file = e.dataTransfer.files[0];
     if (file && (file.type === "text/csv" || file.type === "application/json")) {
       setUploadedFile(file);
@@ -73,7 +73,7 @@ const Upload = () => {
         {/* Task Type Selection */}
         <Card className="p-8 mb-6 shadow-elevation">
           <h2 className="text-2xl font-semibold mb-4">Select Task Type</h2>
-          <RadioGroup value={taskType} onValueChange={(v) => setTaskType(v as any)} className="gap-4">
+          <RadioGroup value={taskType} onValueChange={(v: string) => setTaskType(v as "retrieval" | "classification")} className="gap-4">
             <div className="flex items-start space-x-3 p-4 border-2 border-border rounded-lg hover:border-primary transition-colors cursor-pointer">
               <RadioGroupItem value="retrieval" id="retrieval" className="mt-1" />
               <Label htmlFor="retrieval" className="cursor-pointer flex-1">
@@ -105,7 +105,7 @@ const Upload = () => {
         {/* Upload Area */}
         <Card className="p-8 mb-6 shadow-elevation">
           <h2 className="text-2xl font-semibold mb-4">Upload Data File</h2>
-          
+
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -123,7 +123,7 @@ const Upload = () => {
               className="hidden"
               id="file-upload"
             />
-            
+
             {!uploadedFile ? (
               <>
                 <UploadIcon className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
@@ -170,7 +170,7 @@ const Upload = () => {
                 Download Sample
               </Button>
             </div>
-            
+
             <div className="bg-muted/30 rounded-lg p-4 font-mono text-sm overflow-x-auto">
               <div className="text-muted-foreground mb-2">// Sample data structure</div>
               {taskType === "retrieval" ? (

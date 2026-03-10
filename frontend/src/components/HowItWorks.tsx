@@ -45,11 +45,11 @@ const HowItWorks = () => {
                 <div className="absolute -top-4 -left-4 w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-bold text-lg shadow-lg">
                   {step.step}
                 </div>
-                
+
                 <div className="mt-4 mb-4 inline-flex items-center justify-center w-16 h-16 rounded-lg bg-accent/10 text-accent">
                   {step.icon}
                 </div>
-                
+
                 <h3 className="text-xl font-semibold mb-3">{step.title}</h3>
                 <p className="text-muted-foreground leading-relaxed">{step.description}</p>
               </div>

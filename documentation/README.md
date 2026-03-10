@@ -13,4 +13,3 @@ Project specs and architecture diagrams.
 - Online: [plantuml.com](https://www.plantuml.com/plantuml/uml/)
 - Local: `plantuml diagram.puml`
 - VS Code: PlantUML extension
-

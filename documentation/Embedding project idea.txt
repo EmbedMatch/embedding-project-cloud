@@ -21,4 +21,4 @@ Further improvements if time allows:
 4. Additional benchmarks for label data for example:
 – Recall@10 when relevance labels are available
 – benchmarks for classification (ex. Logistic Regression's / SVM classifier's F1 score [it's heavy but usually works best of all models])
-– a positive–negative keyword benchmark to test domain-specific behavior (ex. hazardous waste / non-hazardous waste) 
+– a positive–negative keyword benchmark to test domain-specific behavior (ex. hazardous waste / non-hazardous waste)

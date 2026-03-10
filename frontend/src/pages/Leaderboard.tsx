@@ -80,7 +80,7 @@ const mockModels: Model[] = [
 
 const Leaderboard = () => {
   const navigate = useNavigate();
-  const [models, setModels] = useState<Model[]>(mockModels);
+  const [models] = useState<Model[]>(mockModels);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"score" | "size" | "cost">("score");
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
@@ -135,8 +135,8 @@ const Leaderboard = () => {
                 className="pl-10"
               />
             </div>
-            
-            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+
+            <Select value={sortBy} onValueChange={(v: string) => setSortBy(v as "score" | "size" | "cost")}>
               <SelectTrigger className="w-[200px]">
                 <ArrowUpDown className="w-4 h-4 mr-2" />
                 <SelectValue />

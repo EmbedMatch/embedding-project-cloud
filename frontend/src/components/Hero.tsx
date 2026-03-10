@@ -7,9 +7,9 @@ const Hero = () => {
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
-        <img 
-          src={heroBg} 
-          alt="AI Embeddings Background" 
+        <img
+          src={heroBg}
+          alt="AI Embeddings Background"
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-background/95 via-background/90 to-background" />
@@ -20,13 +20,13 @@ const Hero = () => {
         <div className="inline-block mb-6 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full backdrop-blur-sm">
           <span className="text-sm font-medium text-primary">Powered by MTEB Leaderboard</span>
         </div>
-        
+
         <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-foreground via-primary to-accent bg-clip-text text-transparent leading-tight">
           Find the Perfect
           <br />
           Embedding Model
         </h1>
-        
+
         <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed">
           Stop guessing. Benchmark top models on your data with constraints that matter—size, cost, and performance.
         </p>

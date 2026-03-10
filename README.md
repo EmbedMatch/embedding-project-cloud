@@ -38,7 +38,7 @@ cd frontend
 pnpm dev
 ```
 
-Backend: `http://localhost:8000`  
+Backend: `http://localhost:8000`
 Frontend: `http://localhost:5173`
 
 ## Structure
