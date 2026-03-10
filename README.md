@@ -51,6 +51,6 @@ documentation/    # Project specs & diagrams
 
 ## Stack
 
-**Backend**: Python 3.12, FastAPI, UV, Ruff, Mypy, Deptry  
-**Frontend**: TypeScript, React, Vite, pnpm, TanStack Query, Tailwind  
+**Backend**: Python 3.12, FastAPI 0.135, UV, Ruff, Mypy, Deptry
+**Frontend**: TypeScript 5.9, React 19, Vite (Rolldown), pnpm, TanStack Query 5, Tailwind CSS 4
 **Azure**: Functions, Cosmos DB, Blob Storage, OpenAI
