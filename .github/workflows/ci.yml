@@ -15,6 +15,8 @@ jobs:
         working-directory: backend
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -34,6 +36,12 @@ jobs:
 
       - name: Mypy
         run: uv run mypy --strict src/
+
+      - name: Tests with coverage
+        run: uv run pytest
+
+      - name: Diff coverage (changed lines must be ≥80% covered)
+        run: uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
 
   frontend:
     name: Frontend checks

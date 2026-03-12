@@ -2,8 +2,11 @@
 
 from typing import Any
 
+from azure.cosmos import CosmosClient
+from azure.storage.blob import BlobServiceClient
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from openai import AzureOpenAI
 
 from src.config import settings
 
@@ -35,8 +38,6 @@ async def health_check() -> dict[str, Any]:
 
     # ── Azure Blob Storage ──
     try:
-        from azure.storage.blob import BlobServiceClient
-
         blob_client = BlobServiceClient.from_connection_string(settings.azure_storage_connection_string)
         props = blob_client.get_account_information()
         checks["storage"] = {"status": "ok", "sku": props["sku_name"]}
@@ -45,8 +46,6 @@ async def health_check() -> dict[str, Any]:
 
     # ── Azure Cosmos DB ──
     try:
-        from azure.cosmos import CosmosClient
-
         cosmos_client = CosmosClient.from_connection_string(settings.azure_cosmos_connection_string)
         db = cosmos_client.get_database_client(settings.azure_cosmos_database)
         db.read()
@@ -56,8 +55,6 @@ async def health_check() -> dict[str, Any]:
 
     # ── Azure OpenAI ──
     try:
-        from openai import AzureOpenAI
-
         openai_client = AzureOpenAI(
             azure_endpoint=settings.azure_openai_endpoint,
             api_key=settings.azure_openai_api_key,

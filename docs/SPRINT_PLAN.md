@@ -41,8 +41,9 @@ Goal: all Azure services connected, file upload works end-to-end, CI/CD deploys 
 | 1.10 | Infra: App Insights dashboard — query logs, set up failure alerts for function | 3 | D | — |
 | 1.11 | Infra: frontend `.env.production` with `VITE_API_URL`, verify build works with prod backend | 2 | D | 1.8 |
 | 1.12 | Frontend: connect Upload + Results pages to real API (vibecoded) | 3 | any | 1.1, 1.6 |
+| 1.13 | Testing: pytest + coverage setup with CI integration (unit tests expected with each PR) | 3 | C | 1.1 |
 
-**Totals**: A=10 · B=10 · C=11 · D=7
+**Totals**: A=10 · B=10 · C=14 · D=7
 
 **Sprint 1 deliverable**: user can upload a file, experiment is created in Cosmos, function processes it with ada-002, results appear on the frontend.
 
@@ -66,7 +67,7 @@ Goal: multiple models compared side-by-side, LLM judge scores relevance, results
 | 2.10 | Infra: Function App deploy with bundled `.python_packages` (Docker-based pip install) | 5 | C | 2.5 |
 | 2.11 | Function: add text-embedding-3-large as second Azure OpenAI model | 2 | D | 1.5 |
 | 2.12 | Backend: input validation hardening (file types, size limits, structured error responses) | 3 | D | 1.6 |
-| 2.13 | Testing: integration tests for backend API (upload, experiments, queue, health) | 5 | D | 2.1 |
+| 2.13 | Testing: end-to-end regression tests against deployed app (health, upload, benchmark, results) | 5 | D | 2.1 |
 | 2.14 | Frontend: dashboard, results charts, progress bar, sample datasets (vibecoded) | 5 | any | 2.1, 2.7 |
 
 **Totals**: A=11 · B=13 · C=11 · D=10
