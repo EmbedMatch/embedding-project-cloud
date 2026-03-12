@@ -32,9 +32,24 @@ jobs:
             -x "uv.lock" \
             -x "tests/*"
 
-      - name: Deploy to Azure App Service
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: embed-match-web
-          publish-profile: ${{ secrets.AZURE_BACKEND_PUBLISH_PROFILE }}
-          package: backend.zip
+      - name: Deploy via Kudu zip deploy
+        env:
+          PUBLISH_PROFILE: ${{ secrets.AZURE_BACKEND_PUBLISH_PROFILE }}
+        run: |
+          # Extract SCM credentials and URL from publish profile XML
+          python3 -c "
+          import os, xml.etree.ElementTree as ET
+          root = ET.fromstring(os.environ['PUBLISH_PROFILE'])
+          p = root.find('.//publishProfile[@publishMethod=\"MSDeploy\"]')
+          host = p.get('publishUrl').replace(':443', '')
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f'SCM_HOST={host}\n')
+              f.write(f'KUDU_CREDS={p.get(\"userName\")}:{p.get(\"userPWD\")}\n')
+          "
+      - name: Push to Kudu
+        run: |
+          curl -sf -X POST \
+            "https://${SCM_HOST}/api/zipdeploy" \
+            -u "${KUDU_CREDS}" \
+            --data-binary @backend.zip \
+            -H "Content-Type: application/zip"

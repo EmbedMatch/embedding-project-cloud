@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
-import { Search, ArrowUpDown, CheckCircle2, PlayCircle, Loader2 } from "lucide-react";
+import { Search, ArrowUpDown, CheckCircle2, PlayCircle, Loader2, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
@@ -17,6 +17,7 @@ interface EmbeddingModel {
   cost_per_m_tokens: number;
   mteb_score: number;
   size_mb: number;
+  provider: string;
 }
 
 const Leaderboard = () => {
@@ -38,10 +39,17 @@ const Leaderboard = () => {
     queryFn: () => fetch(`${API_URL}/models/?${params}`).then((r) => r.json()),
   });
 
+  const experimentId = localStorage.getItem("experimentId");
+  const hasExperiment = !!experimentId;
+
   const startBenchmark = useMutation({
     mutationFn: async () => {
-      const experimentId = localStorage.getItem("experimentId");
       if (!experimentId) throw new Error("No experiment found. Please upload data first.");
+      // Verify experiment exists and has a blob
+      const checkRes = await fetch(`${API_URL}/experiments/${experimentId}`);
+      if (!checkRes.ok) throw new Error("Experiment not found. Please upload data first.");
+      const exp = await checkRes.json();
+      if (!exp.blob_name) throw new Error("No data file uploaded. Please upload data first.");
       const res = await fetch(`${API_URL}/experiments/${experimentId}/benchmark`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -111,6 +119,17 @@ const Leaderboard = () => {
           </div>
         </Card>
 
+        {!hasExperiment && (
+          <Card className="p-4 mb-6 shadow-elevation bg-yellow-50 border-yellow-200">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-600" />
+              <span className="text-sm text-yellow-800">
+                No data uploaded yet. <button className="underline font-medium" onClick={() => navigate("/upload")}>Upload a file</button> first to run a benchmark.
+              </span>
+            </div>
+          </Card>
+        )}
+
         {selectedDeployments.length > 0 && (
           <Card className="p-4 mb-6 shadow-elevation bg-primary/5 border-primary/20">
             <div className="flex items-center justify-between">
@@ -159,7 +178,9 @@ const Leaderboard = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="text-xl font-semibold">{model.name}</h3>
-                      <Badge variant="secondary">Azure OpenAI</Badge>
+                      <Badge variant={model.provider === "azure_openai" ? "secondary" : "outline"}>
+                        {model.provider === "azure_openai" ? "Azure OpenAI" : "Open Source"}
+                      </Badge>
                       {selectedDeployments.includes(model.deployment) && (
                         <Badge className="bg-primary">Selected</Badge>
                       )}
@@ -179,7 +200,9 @@ const Leaderboard = () => {
                       </div>
                       <div>
                         <div className="text-xs text-muted-foreground mb-1">Cost</div>
-                        <div className="text-lg font-semibold text-accent">${model.cost_per_m_tokens}/M</div>
+                        <div className="text-lg font-semibold text-accent">
+                          {model.cost_per_m_tokens === 0 ? "Free" : `$${model.cost_per_m_tokens}/M`}
+                        </div>
                       </div>
                     </div>
                   </div>

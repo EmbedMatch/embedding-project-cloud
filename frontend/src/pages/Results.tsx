@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
-import { Award, TrendingUp, DollarSign, Zap, CheckCircle2, Trophy, Loader2 } from "lucide-react";
+import { Award, TrendingUp, DollarSign, Zap, CheckCircle2, Trophy, Loader2, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "";
@@ -17,12 +17,21 @@ interface ModelResult {
   dimensions: number;
 }
 
+interface BenchmarkProgress {
+  current_model: string;
+  completed_models: number;
+  total_models: number;
+}
+
 interface Experiment {
   id: string;
   status: "pending" | "running" | "completed" | "failed";
   task_type: string;
+  selected_models: string[];
   results: ModelResult[];
+  progress?: BenchmarkProgress | null;
   error?: string;
+  created_at: string;
 }
 
 const Results = () => {
@@ -39,12 +48,17 @@ const Results = () => {
     },
   });
 
-  // Stop polling once done
   useEffect(() => {
     if (experiment?.status === "completed" || experiment?.status === "failed") {
       refetch();
     }
   }, [experiment?.status]);
+
+  // Detect stuck experiments (pending for more than 5 minutes)
+  const isStuck =
+    experiment?.status === "pending" &&
+    experiment.created_at &&
+    Date.now() - new Date(experiment.created_at).getTime() > 5 * 60 * 1000;
 
   if (!experimentId) {
     return (
@@ -63,8 +77,12 @@ const Results = () => {
   const results = experiment?.results ?? [];
   const sorted = [...results].sort((a, b) => b.retrieval_score - a.retrieval_score);
   const winner = sorted[0];
-
   const winner2 = sorted.length > 1 ? sorted[1] : null;
+
+  const progress = experiment?.progress;
+  const totalModels = progress?.total_models ?? experiment?.selected_models?.length ?? 0;
+  const completedModels = progress?.completed_models ?? (experiment?.status === "completed" ? totalModels : 0);
+  const progressPct = totalModels > 0 ? (completedModels / totalModels) * 100 : 0;
 
   return (
     <div className="min-h-screen bg-gradient-hero pt-20 pb-12">
@@ -77,31 +95,97 @@ const Results = () => {
           <p className="text-xl text-muted-foreground">Based on your specific data and constraints</p>
         </div>
 
-        {/* Loading state */}
+        {/* Loading / Progress state */}
         {isPending && (
-          <Card className="p-12 text-center shadow-elevation mb-8">
-            <Loader2 className="w-16 h-16 animate-spin mx-auto mb-6 text-primary" />
-            <h2 className="text-2xl font-bold mb-3">
-              {experiment?.status === "running" ? "Benchmarking in Progress…" : "Queued for Benchmarking…"}
-            </h2>
-            <p className="text-muted-foreground">
-              Azure Function is generating embeddings and evaluating model relevance using GPT-4o-mini as judge.
-              This typically takes 1–3 minutes.
-            </p>
+          <Card className="p-8 shadow-elevation mb-8">
+            <div className="flex items-center gap-4 mb-6">
+              <Loader2 className="w-10 h-10 animate-spin text-primary flex-shrink-0" />
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {experiment?.status === "running" ? "Benchmarking in Progress…" : "Queued for Benchmarking…"}
+                </h2>
+                <p className="text-muted-foreground">
+                  {progress
+                    ? `Processing model ${completedModels + 1} of ${totalModels}`
+                    : "Waiting for Azure Function to pick up the job…"}
+                </p>
+              </div>
+            </div>
+
+            {/* Progress bar */}
+            {totalModels > 0 && (
+              <div className="mb-4">
+                <div className="flex justify-between text-sm text-muted-foreground mb-2">
+                  <span>{completedModels} of {totalModels} models complete</span>
+                  <span>{Math.round(progressPct)}%</span>
+                </div>
+                <Progress value={progressPct} className="h-3" />
+              </div>
+            )}
+
+            {/* Current model */}
+            {progress?.current_model && (
+              <div className="p-3 bg-muted/30 rounded-lg text-sm">
+                <span className="text-muted-foreground">Currently evaluating: </span>
+                <span className="font-semibold">{progress.current_model}</span>
+              </div>
+            )}
+
+            {/* Partial results */}
+            {results.length > 0 && (
+              <div className="mt-6">
+                <h3 className="font-semibold text-sm text-muted-foreground mb-3">Results so far:</h3>
+                <div className="space-y-2">
+                  {results.map((r) => (
+                    <div key={r.model_name} className="flex items-center justify-between p-3 bg-muted/20 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        <span className="font-medium text-sm">{r.model_name}</span>
+                      </div>
+                      <span className="text-sm font-bold text-primary">{(r.retrieval_score * 100).toFixed(1)}%</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Stuck warning */}
+            {isStuck && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-yellow-800">This benchmark seems to be taking longer than expected.</p>
+                  <p className="text-yellow-700 mt-1">
+                    The Azure Function may have encountered an issue. You can try starting a new benchmark
+                    or check the Status page.
+                  </p>
+                </div>
+              </div>
+            )}
           </Card>
         )}
 
         {/* Error state */}
         {isFailed && (
           <Card className="p-8 shadow-elevation mb-8 border-red-200">
-            <h2 className="text-2xl font-bold text-red-600 mb-3">Benchmark Failed</h2>
-            <p className="text-muted-foreground mb-4">{experiment?.error ?? "An unexpected error occurred."}</p>
-            <Button variant="outline" onClick={() => navigate("/leaderboard")}>Try Again</Button>
+            <div className="flex items-start gap-4">
+              <AlertCircle className="w-8 h-8 text-red-500 flex-shrink-0" />
+              <div>
+                <h2 className="text-2xl font-bold text-red-600 mb-3">Benchmark Failed</h2>
+                <p className="text-muted-foreground mb-4">{experiment?.error ?? "An unexpected error occurred."}</p>
+                {results.length > 0 && (
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {results.length} model(s) completed before the failure. Partial results are shown below.
+                  </p>
+                )}
+                <Button variant="outline" onClick={() => navigate("/leaderboard")}>Try Again</Button>
+              </div>
+            </div>
           </Card>
         )}
 
-        {/* Results */}
-        {!isPending && !isFailed && winner && (
+        {/* Results (show when completed OR when there are partial results from a failure) */}
+        {((!isPending && !isFailed) || (isFailed && results.length > 0)) && winner && (
           <>
             {/* Winner Card */}
             <Card className="p-8 mb-8 shadow-glow border-2 border-primary bg-gradient-to-br from-primary/10 via-transparent to-accent/10 relative overflow-hidden">
@@ -120,7 +204,9 @@ const Results = () => {
                     </div>
                     <div>
                       <h2 className="text-3xl font-bold mb-1">{winner.model_name}</h2>
-                      <Badge variant="secondary" className="text-sm">Azure OpenAI</Badge>
+                      <Badge variant={winner.cost_per_m_tokens === 0 ? "outline" : "secondary"}>
+                        {winner.cost_per_m_tokens === 0 ? "Open Source" : "Azure OpenAI"}
+                      </Badge>
                     </div>
                   </div>
 
@@ -144,7 +230,9 @@ const Results = () => {
                     </div>
                     <div className="p-4 bg-card rounded-lg border border-border">
                       <div className="text-xs text-muted-foreground mb-1">Cost</div>
-                      <div className="text-2xl font-bold text-accent">${winner.cost_per_m_tokens}/M</div>
+                      <div className="text-2xl font-bold text-accent">
+                        {winner.cost_per_m_tokens === 0 ? "Free" : `$${winner.cost_per_m_tokens}/M`}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -213,9 +301,11 @@ const Results = () => {
                   <DollarSign className="w-8 h-8 text-accent mb-3" />
                   <h3 className="font-semibold text-lg mb-2">Cost</h3>
                   <p className="text-sm text-muted-foreground">
-                    {winner.model_name} costs ${winner.cost_per_m_tokens}/M tokens.
+                    {winner.cost_per_m_tokens === 0
+                      ? `${winner.model_name} is free (runs locally).`
+                      : `${winner.model_name} costs $${winner.cost_per_m_tokens}/M tokens.`}
                     {winner2 && winner2.cost_per_m_tokens < winner.cost_per_m_tokens
-                      ? ` ${winner2.model_name} is cheaper at $${winner2.cost_per_m_tokens}/M.`
+                      ? ` ${winner2.model_name} is cheaper at ${winner2.cost_per_m_tokens === 0 ? "free" : `$${winner2.cost_per_m_tokens}/M`}.`
                       : ""}
                   </p>
                 </div>

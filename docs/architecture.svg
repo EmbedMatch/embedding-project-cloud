@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" contentScriptType="application/ecmascript" contentStyleType="text/css" height="658px" preserveAspectRatio="none" style="width:650px;height:658px;" version="1.1" viewBox="0 0 650 658" width="650px" zoomAndPan="magnify"><defs/><g><!--MD5=[91973c96897d1b47acf069d2375b565a]
+entity FE--><rect fill="#DBEAFE" height="97.118" style="stroke: #94A3B8; stroke-width: 1.5;" width="130" x="6" y="8"/><rect fill="#DBEAFE" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="1" y="13"/><rect fill="#DBEAFE" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="1" y="95.118"/><text fill="#1E293B" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="102" x="20" y="35.897">React Frontend</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="85" x="20" y="61.603">Vite + Tailwind</text><text fill="#1E293B" font-family="sans-serif" font-size="13" font-style="italic" lengthAdjust="spacingAndGlyphs" textLength="65" x="20" y="87.309">App Service</text><!--MD5=[77b0ea1454fe7a7546e2e8ed5acd0c75]
+entity BE--><rect fill="#E0E7FF" height="97.118" style="stroke: #94A3B8; stroke-width: 1.5;" width="137" x="268.5" y="8"/><rect fill="#E0E7FF" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="263.5" y="13"/><rect fill="#E0E7FF" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="263.5" y="95.118"/><text fill="#1E293B" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="109" x="282.5" y="35.897">FastAPI Backend</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="71" x="282.5" y="61.603">Python 3.12</text><text fill="#1E293B" font-family="sans-serif" font-size="13" font-style="italic" lengthAdjust="spacingAndGlyphs" textLength="65" x="282.5" y="87.309">App Service</text><!--MD5=[51e217d2ad86b79cbf2d51ffd37cb5e9]
+entity BLOB--><rect fill="#FEF3C7" height="71.412" style="stroke: #94A3B8; stroke-width: 1.5;" width="136" x="329" y="576"/><rect fill="#FEF3C7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="324" y="581"/><rect fill="#FEF3C7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="324" y="637.412"/><text fill="#1E293B" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="83" x="343" y="603.897">Blob Storage</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="108" x="343" y="629.603">uploads container</text><!--MD5=[4af9624f1b2a102df9148fa51fe94aae]
+entity COSMOS--><rect fill="#FEF3C7" height="71.412" style="stroke: #94A3B8; stroke-width: 1.5;" width="103" x="209.5" y="186"/><rect fill="#FEF3C7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="204.5" y="191"/><rect fill="#FEF3C7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="204.5" y="247.412"/><text fill="#1E293B" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="71" x="223.5" y="213.897">Cosmos DB</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="75" x="223.5" y="239.603">experiments</text><!--MD5=[b2d26620105c5b296e70c863bee61ada]
+entity QUEUE--><rect fill="#FEF3C7" height="71.412" style="stroke: #94A3B8; stroke-width: 1.5;" width="126" x="342" y="301"/><rect fill="#FEF3C7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="337" y="306"/><rect fill="#FEF3C7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="337" y="362.412"/><text fill="#1E293B" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="98" x="356" y="328.897">Storage Queue</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="97" x="356" y="354.603">benchmark-jobs</text><!--MD5=[b8b9d1457ab5a369c74b48f9b412607e]
+entity FN--><rect fill="#DCFCE7" height="97.118" style="stroke: #94A3B8; stroke-width: 1.5;" width="140" x="117" y="416"/><rect fill="#DCFCE7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="112" y="421"/><rect fill="#DCFCE7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="112" y="503.118"/><text fill="#1E293B" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="87" x="131" y="443.897">Function App</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="112" x="131" y="469.603">Benchmark Engine</text><text fill="#1E293B" font-family="sans-serif" font-size="13" font-style="italic" lengthAdjust="spacingAndGlyphs" textLength="111" x="131" y="495.309">B1 App Service Plan</text><!--MD5=[ab2bf9c3c390ebc57590814ad42c00e3]
+entity OAI--><rect fill="#FCE7F3" height="122.8241" style="stroke: #94A3B8; stroke-width: 1.5;" width="170" x="37" y="275"/><rect fill="#FCE7F3" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="32" y="280"/><rect fill="#FCE7F3" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="32" y="387.8241"/><text fill="#1E293B" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="90" x="51" y="302.897">Azure OpenAI</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="93" x="51" y="328.603">Sweden Central</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="123" x="51" y="354.309">gpt-4o-mini, ada-002</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="142" x="51" y="380.0151">text-embedding-3-large</text><!--MD5=[5905c671f99fcf8ef43ab1a2adbc7601]
+entity ONNX--><rect fill="#DCFCE7" height="97.118" style="stroke: #94A3B8; stroke-width: 1.5;" width="130" x="416" y="416"/><rect fill="#DCFCE7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="411" y="421"/><rect fill="#DCFCE7" height="5" style="stroke: #94A3B8; stroke-width: 1.5;" width="10" x="411" y="503.118"/><text fill="#1E293B" font-family="sans-serif" font-size="13" font-weight="bold" lengthAdjust="spacingAndGlyphs" textLength="102" x="430" y="443.897">ONNX Runtime</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="64" x="430" y="469.603">fastembed</text><text fill="#1E293B" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="75" x="430" y="495.309">MiniLM, BGE</text><!--MD5=[c84acc1e0ff5dab9d481bc9a32c73af7]
+link FE to BE--><path d="M136.07,56.5 C174.49,56.5 223.25,56.5 263.11,56.5 " fill="none" id="FE-&gt;BE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="268.42,56.5,259.42,52.5,263.42,56.5,259.42,60.5,268.42,56.5" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="52" x="176.25" y="27.397">REST API</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="83" x="160.75" y="45.103">(JSON/HTTPS)</text><!--MD5=[3810cfe06b2396e115982eb5acaafa94]
+link BE to BLOB--><path d="M405.65,80.47 C427.41,90.6 449.95,104.51 466,123 C556.2,226.91 543.47,280.26 566,416 C573.06,458.53 587.56,475.67 566,513 C545.25,548.93 505.66,572.8 470.01,587.92 " fill="none" id="BE-&gt;BLOB" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="465.24,589.91,475.0862,590.1408,469.8554,587.9869,472.0092,582.7562,465.24,589.91" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="70" x="568" y="341.897">Upload files</text><!--MD5=[661d7b01aa43c21ffeb8de77aadf4509]
+link BE to COSMOS--><path d="M280.08,105.25 C275.76,110.84 271.95,116.78 269,123 C260.62,140.67 258.16,162.18 257.99,180.49 " fill="none" id="BE-&gt;COSMOS" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="258,185.56,261.9743,176.5486,257.9857,180.56,253.9743,176.5715,258,185.56" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="71" x="276" y="141.897">Create/read</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="75" x="274" y="159.603">experiments</text><!--MD5=[8b6b666943984b1e8e53282fb231f9c8]
+link BE to QUEUE--><path d="M354.55,105.21 C356.51,111.16 358.37,117.2 360,123 C376.67,182.49 390.43,252.88 398.18,295.84 " fill="none" id="BE-&gt;QUEUE" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="399.1,300.94,401.445,291.3744,398.2156,296.0188,393.5712,292.7894,399.1,300.94" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="75" x="376" y="150.897">Enqueue job</text><!--MD5=[4d4cdf9faeb134dc31da762581386488]
+link BE to OAI--><path d="M268.38,64.53 C228.69,72.31 181.17,88.65 153,123 C119.77,163.53 113.68,223.63 114.96,269.58 " fill="none" id="BE-&gt;OAI" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="115.13,274.83,118.8193,265.6982,114.9587,269.8329,110.824,265.9723,115.13,274.83" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="86" x="158" y="150.897">Chat endpoint</text><!--MD5=[b86e451d9702b9e3334bf31fb0602d7a]
+link QUEUE to FN--><path d="M370.95,372.14 C360.88,381.27 349.47,390.62 338,398 C314.47,413.14 286.86,426.28 261.72,436.74 " fill="none" id="QUEUE-&gt;FN" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="257.06,438.66,266.9058,438.9059,261.6783,436.744,263.8402,431.5166,257.06,438.66" style="stroke: #A80036; stroke-width: 1.0;"/><!--MD5=[26e3ce23dc443b1a60a60e6419ccade8]
+reverse link COSMOS to FN--><path d="M242.01,261.86 C240.19,266.24 238.48,270.68 237,275 C218.79,328.13 223.03,343.88 208,398 C206.4,403.75 204.63,409.76 202.81,415.7 " fill="none" id="COSMOS&lt;-FN" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="244.01,257.13,236.8235,263.8645,242.0646,261.736,244.1931,266.9772,244.01,257.13" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="75" x="242" y="341.897">Write results</text><!--MD5=[9b3b34f781933d46cc0afdd2f1c92be1]
+link FN to BLOB--><path d="M256.05,513.18 C284.19,532.61 316.25,554.75 342.68,572.99 " fill="none" id="FN-&gt;BLOB" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="346.87,575.89,341.7395,567.483,342.7565,573.0477,337.1918,574.0646,346.87,575.89" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="81" x="322" y="549.897">Download file</text><!--MD5=[2a9837071c00afd33034e8c994e78ad3]
+reverse link OAI to FN--><path d="M155.79,403 C158.03,407.34 160.26,411.67 162.45,415.9 " fill="none" id="OAI&lt;-FN" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="153.36,398.29,153.9076,408.1236,155.6416,402.7391,161.0261,404.4731,153.36,398.29" style="stroke: #A80036; stroke-width: 1.0;"/><!--MD5=[9c26b8dffc8aed37f7a2797b51c3a755]
+link FN to ONNX--><path d="M257.05,464.5 C303.42,464.5 364.03,464.5 410.5,464.5 " fill="none" id="FN-&gt;ONNX" style="stroke: #A80036; stroke-width: 1.0;"/><polygon fill="#A80036" points="415.52,464.5,406.52,460.5,410.52,464.5,406.52,468.5,415.52,464.5" style="stroke: #A80036; stroke-width: 1.0;"/><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="109" x="282" y="435.397">Local embeddings</text><text fill="#000000" font-family="sans-serif" font-size="13" lengthAdjust="spacingAndGlyphs" textLength="34" x="319.5" y="453.103">(CPU)</text><!--MD5=[f29980e8e1ac219cdfe62a9d8a2aedc4]
+@startuml architecture
+skinparam backgroundColor white
+skinparam defaultFontSize 13
+skinparam componentStyle rectangle
+skinparam padding 4
+skinparam nodesep 40
+skinparam ranksep 35
+skinparam shadowing false
+
+skinparam component {
+  BackgroundColor #F8FAFC
+  BorderColor #94A3B8
+  FontColor #1E293B
+}
+
+component "**React Frontend**\nVite + Tailwind\n<i>App Service</i>" as FE #DBEAFE
+component "**FastAPI Backend**\nPython 3.12\n<i>App Service</i>" as BE #E0E7FF
+
+component "**Blob Storage**\nuploads container" as BLOB #FEF3C7
+component "**Cosmos DB**\nexperiments" as COSMOS #FEF3C7
+component "**Storage Queue**\nbenchmark-jobs" as QUEUE #FEF3C7
+
+component "**Function App**\nBenchmark Engine\n<i>B1 App Service Plan</i>" as FN #DCFCE7
+
+component "**Azure OpenAI**\nSweden Central\ngpt-4o-mini, ada-002\ntext-embedding-3-large" as OAI #FCE7F3
+
+component "**ONNX Runtime**\nfastembed\nMiniLM, BGE" as ONNX #DCFCE7
+
+FE -right-> BE : REST API\n(JSON/HTTPS)
+
+BE -down-> BLOB : Upload files
+BE -down-> COSMOS : Create/read\nexperiments
+BE -down-> QUEUE : Enqueue job
+BE -down-> OAI : Chat endpoint
+
+QUEUE -right-> FN : Queue trigger
+
+FN -up-> COSMOS : Write results
+FN -down-> BLOB : Download file
+FN -left-> OAI : API embeddings\n+ LLM judge
+FN -right-> ONNX : Local embeddings\n(CPU)
+
+@enduml
+
+PlantUML version 1.2020.02(Sun Mar 01 11:22:07 CET 2020)
+(GPL source distribution)
+Java Runtime: OpenJDK Runtime Environment
+JVM: OpenJDK 64-Bit Server VM
+Java Version: 21.0.10+7-Ubuntu-124.04
+Operating System: Linux
+Default Encoding: UTF-8
+Language: en
+Country: US
+--></g></svg>

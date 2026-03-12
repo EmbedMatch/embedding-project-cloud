@@ -1,15 +1,20 @@
 """Azure Function: queue-triggered benchmark engine.
 
 Reads experiment_id from the 'benchmark-jobs' storage queue, runs the
-embedding benchmark using Azure OpenAI, and writes results back to Cosmos DB.
+embedding benchmark using Azure OpenAI or local open-source models (via
+fastembed/ONNX Runtime), and writes results back to Cosmos DB.
 """
 
+import gc
 import io
 import json
 import logging
 import os
 import time
 from typing import Any
+
+# Cache dir for ONNX model files (persistent across restarts on App Service)
+os.environ.setdefault("FASTEMBED_CACHE_PATH", "/home/hf_cache")
 
 import azure.functions as func
 import numpy as np
@@ -20,6 +25,45 @@ from openai import AzureOpenAI
 app = func.FunctionApp()
 
 logger = logging.getLogger(__name__)
+
+# ── Local open-source model support (via fastembed / ONNX Runtime) ───────────
+
+LOCAL_MODEL_METADATA: dict[str, dict[str, Any]] = {
+    "sentence-transformers/all-MiniLM-L6-v2": {"cost_per_m_tokens": 0.00, "dimensions": 384},
+    "BAAI/bge-small-en-v1.5": {"cost_per_m_tokens": 0.00, "dimensions": 384},
+    "BAAI/bge-base-en-v1.5": {"cost_per_m_tokens": 0.00, "dimensions": 768},
+}
+
+_local_model_cache: dict[str, Any] = {}
+
+
+def _is_local_model(model_id: str) -> bool:
+    return model_id in LOCAL_MODEL_METADATA
+
+
+def _get_local_model(model_id: str) -> Any:
+    """Load a fastembed model, keeping only one in memory at a time."""
+    global _local_model_cache
+    if model_id in _local_model_cache:
+        return _local_model_cache[model_id]
+
+    # Evict previous model to keep memory bounded
+    for old_id in list(_local_model_cache.keys()):
+        del _local_model_cache[old_id]
+    gc.collect()
+
+    from fastembed import TextEmbedding
+    logger.info("Loading ONNX model via fastembed: %s", model_id)
+    model = TextEmbedding(model_id, cache_dir=os.environ.get("FASTEMBED_CACHE_PATH"))
+    _local_model_cache[model_id] = model
+    return model
+
+
+def _embed_local(model_id: str, texts: list[str]) -> list[list[float]]:
+    """Embed texts using a local ONNX model via fastembed."""
+    model = _get_local_model(model_id)
+    embeddings = list(model.embed(texts))
+    return [e.tolist() for e in embeddings]
 
 # ── Azure clients (initialised once per cold start) ──────────────────────────
 
@@ -135,19 +179,28 @@ def _benchmark_model(
     chat_deployment: str,
 ) -> dict[str, Any]:
     """Embed docs + queries with model, retrieve top-5, LLM-judge relevance."""
+    local = _is_local_model(model_deployment)
+    truncated_docs = docs[:100]
+
     # Embed all documents
     t0 = time.perf_counter()
-    doc_resp = openai.embeddings.create(model=model_deployment, input=docs[:100])
+    if local:
+        doc_vecs = _embed_local(model_deployment, truncated_docs)
+    else:
+        doc_resp = openai.embeddings.create(model=model_deployment, input=truncated_docs)
+        doc_vecs = [e.embedding for e in doc_resp.data]
     embed_time_ms = (time.perf_counter() - t0) * 1000
-    doc_vecs = [e.embedding for e in doc_resp.data]
     latency_per_doc_ms = embed_time_ms / max(len(doc_vecs), 1)
 
     # Score each query
     scores: list[float] = []
     for query in queries:
-        q_resp = openai.embeddings.create(model=model_deployment, input=[query])
-        q_vec = q_resp.data[0].embedding
-        sims = [(_cosine_similarity(q_vec, dv), docs[i]) for i, dv in enumerate(doc_vecs)]
+        if local:
+            q_vec = _embed_local(model_deployment, [query])[0]
+        else:
+            q_resp = openai.embeddings.create(model=model_deployment, input=[query])
+            q_vec = q_resp.data[0].embedding
+        sims = [(_cosine_similarity(q_vec, dv), truncated_docs[i]) for i, dv in enumerate(doc_vecs)]
         sims.sort(key=lambda x: x[0], reverse=True)
         top5 = [d for _, d in sims[:5]]
         score = _llm_judge(query, top5, openai, chat_deployment)
@@ -203,9 +256,18 @@ def benchmark(msg: func.QueueMessage) -> None:
         model_metadata = {
             "text-embedding-ada-002": {"cost_per_m_tokens": 0.10, "dimensions": 1536},
             "text-embedding-3-large": {"cost_per_m_tokens": 0.13, "dimensions": 3072},
+            **LOCAL_MODEL_METADATA,
         }
-        for model_deployment in item.get("selected_models", []):
-            logger.info("Benchmarking model: %s", model_deployment)
+        selected = item.get("selected_models", [])
+        for i, model_deployment in enumerate(selected):
+            logger.info("Benchmarking model %d/%d: %s", i + 1, len(selected), model_deployment)
+            item["progress"] = {
+                "current_model": model_deployment,
+                "completed_models": i,
+                "total_models": len(selected),
+            }
+            container.upsert_item(item)
+
             metrics = _benchmark_model(model_deployment, docs, queries, openai, chat_deployment)
             meta = model_metadata.get(model_deployment, {"cost_per_m_tokens": 0.10, "dimensions": 1536})
             results.append({
@@ -215,8 +277,9 @@ def benchmark(msg: func.QueueMessage) -> None:
                 "cost_per_m_tokens": meta["cost_per_m_tokens"],
                 "dimensions": meta["dimensions"],
             })
+            item["results"] = results
 
-        item["results"] = results
+        item["progress"] = None
         item["status"] = "completed"
 
     except Exception as exc:

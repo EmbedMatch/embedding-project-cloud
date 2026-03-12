@@ -19,6 +19,12 @@ class ModelResult(BaseModel):
     dimensions: int
 
 
+class BenchmarkProgress(BaseModel):
+    current_model: str
+    completed_models: int
+    total_models: int
+
+
 class Experiment(BaseModel):
     id: str
     status: Literal["pending", "running", "completed", "failed"] = "pending"
@@ -29,13 +35,15 @@ class Experiment(BaseModel):
     constraints: Constraints = Field(default_factory=Constraints)
     selected_models: list[str] = Field(default_factory=list)
     results: list[ModelResult] = Field(default_factory=list)
+    progress: BenchmarkProgress | None = None
     error: str | None = None
 
 
 class EmbeddingModel(BaseModel):
     name: str            # display name
-    deployment: str      # Azure OpenAI deployment name
+    deployment: str      # Azure OpenAI deployment name or HuggingFace model ID
     dimensions: int
     cost_per_m_tokens: float
     mteb_score: float    # approximate MTEB average score
     size_mb: float       # approximate model size
+    provider: str = "azure_openai"  # "azure_openai" or "sentence_transformers"

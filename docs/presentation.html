@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EmbedMatch – Cloud Computing Project</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/white.min.css" />
+<style>
+  :root { --r-heading-color: #1e293b; --r-main-color: #334155; }
+  .reveal h1, .reveal h2, .reveal h3 { color: var(--r-heading-color); }
+  .reveal { font-size: 30px; }
+  .reveal h1 { font-size: 2.2em; }
+  .reveal h2 { font-size: 1.4em; margin-bottom: 0.3em; }
+  .reveal h3 { font-size: 1.1em; margin-bottom: 0.2em; }
+  .reveal small { font-size: 0.6em; color: #64748b; }
+  .reveal .subtitle { color: #6366f1; font-size: 1.1em; margin-top: 0.5em; }
+  .reveal table { font-size: 0.65em; margin: 0 auto; }
+  .reveal table th { background: #6366f1; color: white; padding: 6px 12px; }
+  .reveal table td { padding: 5px 12px; border-bottom: 1px solid #e2e8f0; }
+  .reveal .arch-box { background: #f1f5f9; border-radius: 12px; padding: 16px; text-align: left; font-size: 0.7em; line-height: 1.5; }
+  .reveal .highlight { color: #6366f1; font-weight: bold; }
+  .reveal .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.65em; font-weight: 600; }
+  .reveal .badge-api { background: #dbeafe; color: #1d4ed8; }
+  .reveal .badge-oss { background: #dcfce7; color: #166534; }
+  .reveal pre { font-size: 0.55em; }
+  .reveal code { font-size: 0.85em; }
+  .reveal ul, .reveal ol { text-align: left; font-size: 0.9em; }
+  .reveal li { margin-bottom: 0.15em; }
+  .reveal .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: left; font-size: 0.75em; }
+  .reveal .two-col ul, .reveal .two-col ol { font-size: 1em; }
+  .reveal .red { color: #dc2626; }
+  .reveal .green { color: #16a34a; }
+  .reveal img.arch-diagram { max-height: 520px; margin: 0 auto; display: block; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+<!-- TITLE -->
+<section>
+  <h1>EmbedMatch</h1>
+  <p class="subtitle">Embedding Model Benchmarking Platform</p>
+  <br/>
+  <p>Cloud Computing Project</p>
+  <p><small>Janek &bull; March 2026</small></p>
+</section>
+
+<!-- WHAT IS EMBEDMATCH -->
+<section>
+  <h2>What is EmbedMatch?</h2>
+  <ul>
+    <li>A web platform to <strong>compare embedding models</strong> for text retrieval</li>
+    <li>Users upload documents, select models, and run benchmarks</li>
+    <li>Compares <span class="badge badge-api">Azure OpenAI API</span> models vs <span class="badge badge-oss">Open-Source</span> models</li>
+    <li>Measures: <strong>retrieval quality</strong>, <strong>latency</strong>, and <strong>cost</strong></li>
+  </ul>
+  <br/>
+  <p><small>Key question: Are free open-source models good enough, or do you need to pay for API-based ones?</small></p>
+</section>
+
+<!-- ARCHITECTURE OVERVIEW (PlantUML diagram) -->
+<section>
+  <h2>Architecture Overview</h2>
+  <img class="arch-diagram" src="architecture.svg" alt="Architecture diagram" />
+</section>
+
+<!-- AZURE RESOURCES -->
+<section>
+  <h2>Azure Resources</h2>
+  <table>
+    <thead>
+      <tr><th>Service</th><th>Resource</th><th>Purpose</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>App Service</td><td>embed-match-web</td><td>FastAPI backend (Python 3.12)</td></tr>
+      <tr><td>App Service</td><td>embed-match-frontend</td><td>React SPA (Node 22)</td></tr>
+      <tr><td>Function App</td><td>embed-benchmark-fn</td><td>Queue-triggered benchmark engine</td></tr>
+      <tr><td>Storage Account</td><td>embedstorage20147</td><td>Blob uploads + job queue</td></tr>
+      <tr><td>Cosmos DB</td><td>embed-db</td><td>Experiment results (NoSQL)</td></tr>
+      <tr><td>Azure OpenAI</td><td>embed-openai-sweden</td><td>GPT-4o-mini, ada-002, 3-large</td></tr>
+    </tbody>
+  </table>
+  <p><small>Region: Switzerland North (Cosmos, Storage, App Services) &bull; Sweden Central (OpenAI)</small></p>
+</section>
+
+<!-- COMPONENT COMMUNICATION -->
+<section>
+  <h2>Component Communication</h2>
+  <div class="two-col">
+    <div>
+      <h3>1. Upload Flow</h3>
+      <ol>
+        <li>Frontend &rarr; <code>POST /uploads/</code></li>
+        <li>Backend uploads file to <strong>Blob Storage</strong></li>
+        <li>Returns blob name to frontend</li>
+      </ol>
+      <h3>2. Start Benchmark</h3>
+      <ol>
+        <li>Frontend &rarr; <code>POST /experiments/</code></li>
+        <li>Backend creates doc in <strong>Cosmos DB</strong></li>
+        <li>Backend enqueues job to <strong>Storage Queue</strong></li>
+        <li>Returns experiment ID</li>
+      </ol>
+    </div>
+    <div>
+      <h3>3. Run Benchmark (async)</h3>
+      <ol>
+        <li><strong>Function App</strong> dequeues message</li>
+        <li>Downloads blob from Storage</li>
+        <li>Generates queries via GPT-4o-mini</li>
+        <li>Embeds docs with each model</li>
+        <li>LLM-judges retrieval quality</li>
+        <li>Writes results to <strong>Cosmos DB</strong></li>
+      </ol>
+      <h3>4. View Results</h3>
+      <ol>
+        <li>Frontend polls <code>GET /experiments/{id}</code></li>
+        <li>Backend reads from Cosmos DB</li>
+        <li>Renders leaderboard when complete</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- EMBEDDING MODELS -->
+<section>
+  <h2>Embedding Models Compared</h2>
+  <table>
+    <thead>
+      <tr><th>Model</th><th>Type</th><th>Dims</th><th>Cost/M tok</th><th>MTEB</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Ada 002</td><td><span class="badge badge-api">API</span></td><td>1536</td><td>$0.10</td><td>61.0</td></tr>
+      <tr><td>Text Embedding 3 Large</td><td><span class="badge badge-api">API</span></td><td>3072</td><td>$0.13</td><td>64.6</td></tr>
+      <tr><td>MiniLM-L6-v2</td><td><span class="badge badge-oss">Open Source</span></td><td>384</td><td class="green">Free</td><td>56.3</td></tr>
+      <tr><td>BGE Small EN v1.5</td><td><span class="badge badge-oss">Open Source</span></td><td>384</td><td class="green">Free</td><td>62.2</td></tr>
+      <tr><td>BGE Base EN v1.5</td><td><span class="badge badge-oss">Open Source</span></td><td>768</td><td class="green">Free</td><td>63.6</td></tr>
+    </tbody>
+  </table>
+  <br/>
+  <p><small>Open-source models run locally on the Function App via <strong>fastembed</strong> (ONNX Runtime) — no external API calls, zero cost per token</small></p>
+</section>
+
+<!-- DUAL MODE EMBEDDING -->
+<section>
+  <h2>Dual-Mode Embedding Engine</h2>
+  <div class="two-col">
+    <div>
+      <h3><span class="badge badge-api">API Models</span></h3>
+      <ul>
+        <li>Azure OpenAI SDK call</li>
+        <li>~6 ms per document</li>
+        <li>Pay per token</li>
+        <li>Models hosted by Microsoft</li>
+        <li>Requires network round-trip</li>
+      </ul>
+    </div>
+    <div>
+      <h3><span class="badge badge-oss">Local Models</span></h3>
+      <ul>
+        <li>fastembed / ONNX Runtime</li>
+        <li>~250 ms per document (CPU)</li>
+        <li>Free (compute only)</li>
+        <li>Models downloaded to Function App</li>
+        <li>Single-model eviction to fit B1 RAM</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ASYNC PROCESSING -->
+<section>
+  <h2>Asynchronous Processing</h2>
+  <div class="two-col">
+    <div>
+      <h3>Why Queue-Based?</h3>
+      <ul>
+        <li>Benchmarks take 30–120s per model</li>
+        <li>HTTP timeout would kill the request</li>
+        <li>Queue decouples web tier from compute</li>
+      </ul>
+      <h3>Flow</h3>
+      <ol>
+        <li>Backend enqueues experiment ID</li>
+        <li>Function App dequeues &amp; processes</li>
+        <li>Results written to Cosmos DB</li>
+        <li>Frontend polls until complete</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Fault Tolerance</h3>
+      <ul>
+        <li>Visibility timeout: 10 min (covers model download on first run)</li>
+        <li>Max dequeue count: 3, then &rarr; poison queue</li>
+        <li>Function auto-retries on transient failures</li>
+      </ul>
+      <h3>Poison Queue</h3>
+      <ul>
+        <li>Failed messages go to <code>benchmark-jobs-poison</code></li>
+        <li>Can be re-enqueued or inspected manually</li>
+        <li>Prevents infinite retry loops</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CI/CD OVERVIEW -->
+<section>
+  <h2>CI/CD with GitHub Actions</h2>
+  <div class="two-col">
+    <div>
+      <h3>3 Independent Pipelines</h3>
+      <table style="font-size: 0.9em;">
+        <thead><tr><th>Pipeline</th><th>Trigger</th><th>Method</th></tr></thead>
+        <tbody>
+          <tr><td>Backend</td><td><code>backend/**</code></td><td>Kudu (Oryx)</td></tr>
+          <tr><td>Frontend</td><td><code>frontend/**</code></td><td>OneDeploy</td></tr>
+          <tr><td>Function</td><td><code>functions/**</code></td><td>Kudu (bundled)</td></tr>
+        </tbody>
+      </table>
+      <br/>
+      <p>Push to <code>main</code> &rarr; GitHub Actions &rarr; automatic deploy</p>
+      <p>Each also has <code>workflow_dispatch</code> for manual triggers</p>
+    </div>
+    <div>
+      <h3>Key Concepts</h3>
+      <ul>
+        <li><strong>Kudu</strong> — Azure's SCM/deployment engine running alongside every App Service; exposes REST API for zip deploy, logs, SSH</li>
+        <li><strong>Oryx</strong> — Azure's build system that auto-detects language, runs <code>pip install</code> / <code>npm install</code> from the zip during deploy</li>
+        <li><strong>OneDeploy</strong> — Simpler alternative: pushes pre-built artifacts directly (no build step on server)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CI/CD CONFIGURATION -->
+<section>
+  <h2>CI/CD Configuration Details</h2>
+  <div class="two-col">
+    <div>
+      <h3>Backend Deploy</h3>
+      <ul>
+        <li>Zips <code>backend/</code> with <code>requirements.txt</code></li>
+        <li>Kudu receives zip &rarr; Oryx detects Python &rarr; runs <code>pip install</code></li>
+        <li>Startup: <code>uvicorn src.main:app</code></li>
+      </ul>
+      <h3>Frontend Deploy</h3>
+      <ul>
+        <li><code>pnpm build</code> on CI runner</li>
+        <li>Zips <code>dist/</code> folder (static HTML/JS/CSS)</li>
+        <li>OneDeploy pushes pre-built files</li>
+        <li>Startup: <code>npx serve . -s</code></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Function App Deploy</h3>
+      <ul>
+        <li><code>pip install -t fn_pkgs</code> on CI runner (bundles 285 MB of packages)</li>
+        <li>Copies into <code>.python_packages/lib/site-packages/</code></li>
+        <li>Zips entire bundle &rarr; Kudu zip deploy</li>
+        <li>No Oryx build — packages are pre-installed</li>
+      </ul>
+      <h3>Authentication</h3>
+      <ul>
+        <li>Publish Profiles stored as GitHub Secrets</li>
+        <li>Credentials extracted via XML parsing in CI</li>
+        <li>Passed to Kudu API as HTTP Basic Auth</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- FUNCTION APP DEPLOYMENT CHALLENGE -->
+<section>
+  <h2>Function App Deployment Challenge</h2>
+  <div class="two-col">
+    <div>
+      <h3>Problem</h3>
+      <ul>
+        <li>fastembed + ONNX Runtime = 285 MB of packages</li>
+        <li>Remote build (<code>pip install</code>) unreliable on App Service Plans</li>
+        <li>First attempt with PyTorch: 3.3 GB zip — too large!</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Solution</h3>
+      <ul>
+        <li>Switched to <strong>fastembed</strong> (ONNX Runtime) — 10x smaller than PyTorch</li>
+        <li><strong>Bundle packages</strong> directly in the zip at <code>.python_packages/</code></li>
+        <li>CI pipeline runs <code>pip install -t</code> then zips everything</li>
+      </ul>
+    </div>
+  </div>
+  <br/>
+  <p><small>Model weights (~80-420 MB) are downloaded on first invocation and cached at <code>/home/hf_cache</code></small></p>
+</section>
+
+<!-- COSMOS DB -->
+<section>
+  <h2>Cosmos DB – NoSQL Document Store</h2>
+  <div class="arch-box">
+    <p><strong>Database:</strong> <code>embedbench</code> &nbsp;|&nbsp; <strong>Container:</strong> <code>experiments</code> &nbsp;|&nbsp; <strong>Partition key:</strong> <code>/id</code></p>
+    <pre><code>{
+  "id": "bdc086b0-...",
+  "status": "completed",          // pending -> running -> completed/failed
+  "blob_name": "dataset.csv",
+  "selected_models": ["text-embedding-ada-002", "BAAI/bge-small-en-v1.5"],
+  "results": [
+    { "model_name": "...", "retrieval_score": 0.80, "latency_ms": 6.2, ... },
+    { "model_name": "...", "retrieval_score": 0.78, "latency_ms": 252, ... }
+  ]
+}</code></pre>
+    <p><strong>Why Cosmos?</strong> Flexible schema, global distribution ready, serverless pricing tier available</p>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section>
+  <h2>Security Measures</h2>
+  <ul>
+    <li><strong>IP Whitelisting</strong> — both App Services have firewall rules restricting access</li>
+    <li><strong>Cosmos DB Firewall</strong> — only backend App Service outbound IPs allowed</li>
+    <li><strong>Publish Profiles</strong> — credentials stored as GitHub Secrets</li>
+    <li><strong>Connection Strings</strong> — stored in Azure App Settings (not in code)</li>
+    <li><strong>CORS</strong> — backend only accepts requests from the frontend domain</li>
+    <li><strong>File Validation</strong> — upload endpoint restricts to CSV/JSON/TXT, max 50 MB</li>
+  </ul>
+</section>
+
+<!-- STUDENT LICENSE DRAWBACKS -->
+<section>
+  <h2 class="red">Student License Drawbacks</h2>
+  <div class="two-col" style="font-size: 0.72em;">
+    <div>
+      <h3>Region & Resource Restrictions</h3>
+      <ul>
+        <li>Many regions locked (US, Asia, Australia, Canada, Brazil, etc.)</li>
+        <li>Some resource types unavailable in allowed regions (e.g., no Linux Consumption Plan in Switzerland North)</li>
+        <li>Azure OpenAI quota per region — Switzerland North has <strong>zero</strong> chat model quota &rarr; had to deploy OpenAI in Sweden Central</li>
+        <li>Limited TPM (tokens per minute) per model — throttles large benchmarks</li>
+        <li>$100 credit cap — no pay-as-you-go scaling</li>
+      </ul>
+    </div>
+    <div>
+      <h3>No RBAC (Role-Based Access Control)</h3>
+      <ul>
+        <li>Cannot create <strong>Service Principals</strong> &rarr; no passwordless CI/CD (OIDC)</li>
+        <li>Cannot create <strong>Managed Identities</strong> &rarr; services authenticate via connection strings instead of identity</li>
+        <li>No access to <strong>Azure AD / Entra ID</strong> app registrations &rarr; cannot add user authentication</li>
+        <li>Cannot assign roles (e.g., "Storage Blob Data Contributor") &rarr; must use full connection strings with account keys</li>
+        <li>Cannot set up <strong>VNet integration</strong> or <strong>Private Endpoints</strong> &rarr; must rely on IP whitelisting</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT COULD BE BETTER -->
+<section>
+  <h2>What Could Be Better</h2>
+  <table>
+    <thead>
+      <tr><th>Current (Student)</th><th>With Full Subscription</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Publish profiles (shared credentials)</td>
+        <td>Service Principal + OIDC (no secrets to rotate)</td>
+      </tr>
+      <tr>
+        <td>Connection strings with account keys</td>
+        <td>Managed Identity + RBAC roles (zero credentials)</td>
+      </tr>
+      <tr>
+        <td>B1 App Service Plan (~12/mo)</td>
+        <td>Consumption Plan (pay per execution, ~0)</td>
+      </tr>
+      <tr>
+        <td>OpenAI in Sweden, resources in Switzerland</td>
+        <td>All resources co-located in same region</td>
+      </tr>
+      <tr>
+        <td>IP whitelisting only</td>
+        <td>VNet + Private Endpoints + Azure AD auth</td>
+      </tr>
+      <tr>
+        <td>No GPU compute (CPU inference ~250ms)</td>
+        <td>GPU-enabled Function App or AKS (~5ms)</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- BENCHMARK RESULTS -->
+<section>
+  <h2>Sample Benchmark Results</h2>
+  <table>
+    <thead>
+      <tr><th>Model</th><th>Type</th><th>Score</th><th>Latency</th><th>Cost/M</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Ada 002</td><td><span class="badge badge-api">API</span></td><td>0.80</td><td>6 ms</td><td>$0.10</td></tr>
+      <tr><td>MiniLM-L6-v2</td><td><span class="badge badge-oss">Open Source</span></td><td>0.78</td><td>252 ms</td><td class="green">Free</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- TECH STACK -->
+<section>
+  <h2>Technology Stack</h2>
+  <div class="two-col">
+    <div>
+      <h3>Backend</h3>
+      <ul>
+        <li>Python 3.12, FastAPI</li>
+        <li>Azure SDK (Storage, Cosmos, OpenAI)</li>
+        <li>Pydantic for data validation</li>
+        <li>uv for dependency management</li>
+      </ul>
+      <h3>Function App</h3>
+      <ul>
+        <li>Python 3.12, Azure Functions v2</li>
+        <li>fastembed (ONNX Runtime)</li>
+        <li>Queue trigger (event-driven)</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Frontend</h3>
+      <ul>
+        <li>React 18, TypeScript</li>
+        <li>Vite build tool</li>
+        <li>Tailwind CSS + shadcn/ui</li>
+        <li>TanStack Query (data fetching)</li>
+        <li>Recharts (visualizations)</li>
+      </ul>
+      <h3>DevOps</h3>
+      <ul>
+        <li>GitHub Actions (3 pipelines)</li>
+        <li>Kudu / Oryx / OneDeploy</li>
+        <li>pnpm (frontend), uv (backend)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SUMMARY -->
+<section>
+  <h2>Summary</h2>
+  <ul>
+    <li><strong>6 Azure services</strong> working together via queues, REST APIs, and SDKs</li>
+    <li><strong>Event-driven architecture</strong> — queue decouples long-running benchmarks from the web tier</li>
+    <li><strong>Dual embedding engine</strong> — API-based and local ONNX models in one platform</li>
+    <li><strong>Fully automated CI/CD</strong> — push to main deploys the affected service</li>
+    <li><strong>Student license workarounds</strong> — creative solutions for real-world constraints</li>
+  </ul>
+  <br/>
+  <p class="subtitle">Thank you!</p>
+</section>
+
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: true,
+  transition: 'slide',
+  width: 1200,
+  height: 700,
+});
+</script>
+</body>
+</html>
