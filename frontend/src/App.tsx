@@ -9,6 +9,7 @@ import Constraints from "./pages/Constraints";
 import Leaderboard from "./pages/Leaderboard";
 import Results from "./pages/Results";
 import Dashboard from "./pages/Dashboard";
+import ConnectionTest from "./pages/ConnectionTest";
 import NotFound from "./pages/NotFound";
 import Header from "./components/Header";
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/results" element={<Results />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/test" element={<ConnectionTest />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
