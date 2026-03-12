@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Azure Cosmos DB
     azure_cosmos_connection_string: str = ""
     azure_cosmos_database: str = "embedbench"
+    azure_cosmos_container: str = "experiments"
 
     # Azure OpenAI
     azure_openai_endpoint: str = ""
