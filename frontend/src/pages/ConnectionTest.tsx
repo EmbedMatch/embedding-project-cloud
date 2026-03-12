@@ -43,7 +43,7 @@ export default function ConnectionTest() {
     queryKey: ["fn-health"],
     queryFn: async () => {
       try {
-        await fetch("https://embed-benchmark-fn.azurewebsites.net/", { mode: "no-cors" });
+        await fetch("https://embed-benchmark-fn-swe.azurewebsites.net/", { mode: "no-cors" });
         return { status: "reachable" };
       } catch {
         return { status: "unreachable" };

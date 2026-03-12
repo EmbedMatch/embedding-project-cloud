@@ -44,7 +44,8 @@
   <p class="subtitle">Embedding Model Benchmarking Platform</p>
   <br/>
   <p>Cloud Computing Project</p>
-  <p><small>Janek &bull; March 2026</small></p>
+  <p><small>Jayasurya Marasani &bull; Arunkumar Murugesan &bull; Sneharajalakshmi Palanisamy &bull; Jan Wojciech Wangrat</small></p>
+  <p><small>March 2026</small></p>
 </section>
 
 <!-- WHAT IS EMBEDMATCH -->
@@ -57,7 +58,6 @@
     <li>Measures: <strong>retrieval quality</strong>, <strong>latency</strong>, and <strong>cost</strong></li>
   </ul>
   <br/>
-  <p><small>Key question: Are free open-source models good enough, or do you need to pay for API-based ones?</small></p>
 </section>
 
 <!-- ARCHITECTURE OVERVIEW (PlantUML diagram) -->
@@ -74,15 +74,15 @@
       <tr><th>Service</th><th>Resource</th><th>Purpose</th></tr>
     </thead>
     <tbody>
-      <tr><td>App Service</td><td>embed-match-web</td><td>FastAPI backend (Python 3.12)</td></tr>
-      <tr><td>App Service</td><td>embed-match-frontend</td><td>React SPA (Node 22)</td></tr>
-      <tr><td>Function App</td><td>embed-benchmark-fn</td><td>Queue-triggered benchmark engine</td></tr>
+      <tr><td>App Service</td><td>embed-match-web</td><td>FastAPI backend</td></tr>
+      <tr><td>App Service</td><td>embed-match-frontend</td><td>React frontend</td></tr>
+      <tr><td>Function App</td><td>embed-benchmark-fn-swe</td><td>Queue-triggered benchmark</td></tr>
       <tr><td>Storage Account</td><td>embedstorage20147</td><td>Blob uploads + job queue</td></tr>
       <tr><td>Cosmos DB</td><td>embed-db</td><td>Experiment results (NoSQL)</td></tr>
       <tr><td>Azure OpenAI</td><td>embed-openai-sweden</td><td>GPT-4o-mini, ada-002, 3-large</td></tr>
     </tbody>
   </table>
-  <p><small>Region: Switzerland North (Cosmos, Storage, App Services) &bull; Sweden Central (OpenAI)</small></p>
+  <p><small>Region: Switzerland North (Cosmos, Storage, App Services) &bull; Sweden Central (OpenAI, Function App)</small></p>
 </section>
 
 <!-- COMPONENT COMMUNICATION -->
@@ -164,137 +164,10 @@
         <li>~250 ms per document (CPU)</li>
         <li>Free (compute only)</li>
         <li>Models downloaded to Function App</li>
-        <li>Single-model eviction to fit B1 RAM</li>
+        <li>Single-model eviction to bound memory</li>
       </ul>
     </div>
   </div>
-</section>
-
-<!-- ASYNC PROCESSING -->
-<section>
-  <h2>Asynchronous Processing</h2>
-  <div class="two-col">
-    <div>
-      <h3>Why Queue-Based?</h3>
-      <ul>
-        <li>Benchmarks take 30–120s per model</li>
-        <li>HTTP timeout would kill the request</li>
-        <li>Queue decouples web tier from compute</li>
-      </ul>
-      <h3>Flow</h3>
-      <ol>
-        <li>Backend enqueues experiment ID</li>
-        <li>Function App dequeues &amp; processes</li>
-        <li>Results written to Cosmos DB</li>
-        <li>Frontend polls until complete</li>
-      </ol>
-    </div>
-    <div>
-      <h3>Fault Tolerance</h3>
-      <ul>
-        <li>Visibility timeout: 10 min (covers model download on first run)</li>
-        <li>Max dequeue count: 3, then &rarr; poison queue</li>
-        <li>Function auto-retries on transient failures</li>
-      </ul>
-      <h3>Poison Queue</h3>
-      <ul>
-        <li>Failed messages go to <code>benchmark-jobs-poison</code></li>
-        <li>Can be re-enqueued or inspected manually</li>
-        <li>Prevents infinite retry loops</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<!-- CI/CD OVERVIEW -->
-<section>
-  <h2>CI/CD with GitHub Actions</h2>
-  <div class="two-col">
-    <div>
-      <h3>3 Independent Pipelines</h3>
-      <table style="font-size: 0.9em;">
-        <thead><tr><th>Pipeline</th><th>Trigger</th><th>Method</th></tr></thead>
-        <tbody>
-          <tr><td>Backend</td><td><code>backend/**</code></td><td>Kudu (Oryx)</td></tr>
-          <tr><td>Frontend</td><td><code>frontend/**</code></td><td>OneDeploy</td></tr>
-          <tr><td>Function</td><td><code>functions/**</code></td><td>Kudu (bundled)</td></tr>
-        </tbody>
-      </table>
-      <br/>
-      <p>Push to <code>main</code> &rarr; GitHub Actions &rarr; automatic deploy</p>
-      <p>Each also has <code>workflow_dispatch</code> for manual triggers</p>
-    </div>
-    <div>
-      <h3>Key Concepts</h3>
-      <ul>
-        <li><strong>Kudu</strong> — Azure's SCM/deployment engine running alongside every App Service; exposes REST API for zip deploy, logs, SSH</li>
-        <li><strong>Oryx</strong> — Azure's build system that auto-detects language, runs <code>pip install</code> / <code>npm install</code> from the zip during deploy</li>
-        <li><strong>OneDeploy</strong> — Simpler alternative: pushes pre-built artifacts directly (no build step on server)</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<!-- CI/CD CONFIGURATION -->
-<section>
-  <h2>CI/CD Configuration Details</h2>
-  <div class="two-col">
-    <div>
-      <h3>Backend Deploy</h3>
-      <ul>
-        <li>Zips <code>backend/</code> with <code>requirements.txt</code></li>
-        <li>Kudu receives zip &rarr; Oryx detects Python &rarr; runs <code>pip install</code></li>
-        <li>Startup: <code>uvicorn src.main:app</code></li>
-      </ul>
-      <h3>Frontend Deploy</h3>
-      <ul>
-        <li><code>pnpm build</code> on CI runner</li>
-        <li>Zips <code>dist/</code> folder (static HTML/JS/CSS)</li>
-        <li>OneDeploy pushes pre-built files</li>
-        <li>Startup: <code>npx serve . -s</code></li>
-      </ul>
-    </div>
-    <div>
-      <h3>Function App Deploy</h3>
-      <ul>
-        <li><code>pip install -t fn_pkgs</code> on CI runner (bundles 285 MB of packages)</li>
-        <li>Copies into <code>.python_packages/lib/site-packages/</code></li>
-        <li>Zips entire bundle &rarr; Kudu zip deploy</li>
-        <li>No Oryx build — packages are pre-installed</li>
-      </ul>
-      <h3>Authentication</h3>
-      <ul>
-        <li>Publish Profiles stored as GitHub Secrets</li>
-        <li>Credentials extracted via XML parsing in CI</li>
-        <li>Passed to Kudu API as HTTP Basic Auth</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<!-- FUNCTION APP DEPLOYMENT CHALLENGE -->
-<section>
-  <h2>Function App Deployment Challenge</h2>
-  <div class="two-col">
-    <div>
-      <h3>Problem</h3>
-      <ul>
-        <li>fastembed + ONNX Runtime = 285 MB of packages</li>
-        <li>Remote build (<code>pip install</code>) unreliable on App Service Plans</li>
-        <li>First attempt with PyTorch: 3.3 GB zip — too large!</li>
-      </ul>
-    </div>
-    <div>
-      <h3>Solution</h3>
-      <ul>
-        <li>Switched to <strong>fastembed</strong> (ONNX Runtime) — 10x smaller than PyTorch</li>
-        <li><strong>Bundle packages</strong> directly in the zip at <code>.python_packages/</code></li>
-        <li>CI pipeline runs <code>pip install -t</code> then zips everything</li>
-      </ul>
-    </div>
-  </div>
-  <br/>
-  <p><small>Model weights (~80-420 MB) are downloaded on first invocation and cached at <code>/home/hf_cache</code></small></p>
 </section>
 
 <!-- COSMOS DB -->
@@ -316,19 +189,6 @@
   </div>
 </section>
 
-<!-- SECURITY -->
-<section>
-  <h2>Security Measures</h2>
-  <ul>
-    <li><strong>IP Whitelisting</strong> — both App Services have firewall rules restricting access</li>
-    <li><strong>Cosmos DB Firewall</strong> — only backend App Service outbound IPs allowed</li>
-    <li><strong>Publish Profiles</strong> — credentials stored as GitHub Secrets</li>
-    <li><strong>Connection Strings</strong> — stored in Azure App Settings (not in code)</li>
-    <li><strong>CORS</strong> — backend only accepts requests from the frontend domain</li>
-    <li><strong>File Validation</strong> — upload endpoint restricts to CSV/JSON/TXT, max 50 MB</li>
-  </ul>
-</section>
-
 <!-- STUDENT LICENSE DRAWBACKS -->
 <section>
   <h2 class="red">Student License Drawbacks</h2>
@@ -340,7 +200,6 @@
         <li>Some resource types unavailable in allowed regions (e.g., no Linux Consumption Plan in Switzerland North)</li>
         <li>Azure OpenAI quota per region — Switzerland North has <strong>zero</strong> chat model quota &rarr; had to deploy OpenAI in Sweden Central</li>
         <li>Limited TPM (tokens per minute) per model — throttles large benchmarks</li>
-        <li>$100 credit cap — no pay-as-you-go scaling</li>
       </ul>
     </div>
     <div>
@@ -355,43 +214,6 @@
     </div>
   </div>
 </section>
-
-<!-- WHAT COULD BE BETTER -->
-<section>
-  <h2>What Could Be Better</h2>
-  <table>
-    <thead>
-      <tr><th>Current (Student)</th><th>With Full Subscription</th></tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>Publish profiles (shared credentials)</td>
-        <td>Service Principal + OIDC (no secrets to rotate)</td>
-      </tr>
-      <tr>
-        <td>Connection strings with account keys</td>
-        <td>Managed Identity + RBAC roles (zero credentials)</td>
-      </tr>
-      <tr>
-        <td>B1 App Service Plan (~12/mo)</td>
-        <td>Consumption Plan (pay per execution, ~0)</td>
-      </tr>
-      <tr>
-        <td>OpenAI in Sweden, resources in Switzerland</td>
-        <td>All resources co-located in same region</td>
-      </tr>
-      <tr>
-        <td>IP whitelisting only</td>
-        <td>VNet + Private Endpoints + Azure AD auth</td>
-      </tr>
-      <tr>
-        <td>No GPU compute (CPU inference ~250ms)</td>
-        <td>GPU-enabled Function App or AKS (~5ms)</td>
-      </tr>
-    </tbody>
-  </table>
-</section>
-
 <!-- BENCHMARK RESULTS -->
 <section>
   <h2>Sample Benchmark Results</h2>
@@ -400,58 +222,24 @@
       <tr><th>Model</th><th>Type</th><th>Score</th><th>Latency</th><th>Cost/M</th></tr>
     </thead>
     <tbody>
-      <tr><td>Ada 002</td><td><span class="badge badge-api">API</span></td><td>0.80</td><td>6 ms</td><td>$0.10</td></tr>
-      <tr><td>MiniLM-L6-v2</td><td><span class="badge badge-oss">Open Source</span></td><td>0.78</td><td>252 ms</td><td class="green">Free</td></tr>
+      <tr><td>BGE Small EN v1.5</td><td><span class="badge badge-oss">Open Source</span></td><td><strong>0.70</strong></td><td>250 ms</td><td class="green">Free</td></tr>
+      <tr><td>MiniLM-L6-v2</td><td><span class="badge badge-oss">Open Source</span></td><td>0.62</td><td>240 ms</td><td class="green">Free</td></tr>
+      <tr><td>Ada 002</td><td><span class="badge badge-api">API</span></td><td>0.50</td><td>6 ms</td><td>$0.10</td></tr>
     </tbody>
   </table>
+  <br/>
+  <p><small>LLM judge uses deterministic setup: <code>temperature=0</code>, <code>seed=42</code>, structured JSON counting prompt &mdash; 100% consistent across runs</small></p>
 </section>
-
-<!-- TECH STACK -->
-<section>
-  <h2>Technology Stack</h2>
-  <div class="two-col">
-    <div>
-      <h3>Backend</h3>
-      <ul>
-        <li>Python 3.12, FastAPI</li>
-        <li>Azure SDK (Storage, Cosmos, OpenAI)</li>
-        <li>Pydantic for data validation</li>
-        <li>uv for dependency management</li>
-      </ul>
-      <h3>Function App</h3>
-      <ul>
-        <li>Python 3.12, Azure Functions v2</li>
-        <li>fastembed (ONNX Runtime)</li>
-        <li>Queue trigger (event-driven)</li>
-      </ul>
-    </div>
-    <div>
-      <h3>Frontend</h3>
-      <ul>
-        <li>React 18, TypeScript</li>
-        <li>Vite build tool</li>
-        <li>Tailwind CSS + shadcn/ui</li>
-        <li>TanStack Query (data fetching)</li>
-        <li>Recharts (visualizations)</li>
-      </ul>
-      <h3>DevOps</h3>
-      <ul>
-        <li>GitHub Actions (3 pipelines)</li>
-        <li>Kudu / Oryx / OneDeploy</li>
-        <li>pnpm (frontend), uv (backend)</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
-<!-- SUMMARY -->
+>
 <section>
   <h2>Summary</h2>
   <ul>
-    <li><strong>6 Azure services</strong> working together via queues, REST APIs, and SDKs</li>
+    <li><strong>9 Azure resources</strong> working together via queues, REST APIs, and SDKs</li>
+    <li><strong>Serverless FaaS</strong> — Consumption Plan with scale-to-zero and auto-scaling</li>
     <li><strong>Event-driven architecture</strong> — queue decouples long-running benchmarks from the web tier</li>
     <li><strong>Dual embedding engine</strong> — API-based and local ONNX models in one platform</li>
-    <li><strong>Fully automated CI/CD</strong> — push to main deploys the affected service</li>
+    <li><strong>Deterministic LLM evaluation</strong> — structured JSON counting for reproducible results</li>
+    <li><strong>CI/CD</strong> — automated for backend &amp; frontend, manual for Function App</li>
     <li><strong>Student license workarounds</strong> — creative solutions for real-world constraints</li>
   </ul>
   <br/>

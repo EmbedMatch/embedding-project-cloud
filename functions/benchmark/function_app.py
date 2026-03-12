@@ -140,6 +140,8 @@ def _generate_queries(docs: list[str], openai: AzureOpenAI, chat_deployment: str
             ),
         }],
         max_tokens=200,
+        temperature=0,
+        seed=42,
     )
     raw = resp.choices[0].message.content or ""
     return [q.strip() for q in raw.strip().splitlines() if q.strip()][:5]
@@ -148,27 +150,47 @@ def _generate_queries(docs: list[str], openai: AzureOpenAI, chat_deployment: str
 def _llm_judge(
     query: str, retrieved_docs: list[str], openai: AzureOpenAI, chat_deployment: str
 ) -> float:
-    """Ask GPT to score relevance of retrieved docs for a query. Returns 0.0–1.0."""
+    """Ask GPT to score relevance of each retrieved doc individually. Returns 0.0–1.0.
+
+    Scores each document on a 0-10 scale, then averages and normalises.
+    Per-document scoring gives finer granularity than counting relevant/irrelevant.
+    """
     docs_text = "\n".join(f"[{i+1}] {d[:300]}" for i, d in enumerate(retrieved_docs))
     resp = openai.chat.completions.create(
         model=chat_deployment,
-        messages=[{
-            "role": "user",
-            "content": (
-                f'Query: "{query}"\n\n'
-                f"Retrieved documents:\n{docs_text}\n\n"
-                "Rate the overall relevance of these retrieved documents for the query "
-                "on a scale from 0.0 (completely irrelevant) to 1.0 (perfectly relevant). "
-                "Respond with only a single decimal number."
-            ),
-        }],
-        max_tokens=10,
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a search relevance evaluator. Given a query and retrieved "
+                    "documents, score each document's relevance to the query on a scale "
+                    "of 0-10 (0 = completely irrelevant, 10 = perfectly relevant). "
+                    "Respond with ONLY a JSON object: "
+                    '{"scores": [<score1>, <score2>, ...]}'
+                ),
+            },
+            {
+                "role": "user",
+                "content": f'Query: "{query}"\n\nRetrieved documents:\n{docs_text}',
+            },
+        ],
+        max_tokens=60,
+        temperature=0,
+        seed=42,
     )
-    raw = (resp.choices[0].message.content or "0").strip()
+    raw = (resp.choices[0].message.content or "").strip()
     try:
-        return max(0.0, min(1.0, float(raw)))
-    except ValueError:
-        return 0.5
+        data = json.loads(raw)
+        doc_scores = [max(0, min(10, float(s))) for s in data["scores"]]
+        if not doc_scores:
+            return 0.0
+        return round(sum(doc_scores) / (len(doc_scores) * 10), 4)
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+        # Fallback: try to parse as a plain number
+        try:
+            return max(0.0, min(1.0, float(raw)))
+        except ValueError:
+            return 0.0
 
 
 def _benchmark_model(
@@ -220,7 +242,9 @@ def _benchmark_model(
     connection="AZURE_STORAGE_CONNECTION_STRING",
 )
 def benchmark(msg: func.QueueMessage) -> None:
-    experiment_id = msg.get_body().decode("utf-8").strip()
+    raw_body = msg.get_body()
+    logger.info("Queue message received, raw bytes: %r", raw_body[:200])
+    experiment_id = raw_body.decode("utf-8").strip().strip('"')
     logger.info("Starting benchmark for experiment %s", experiment_id)
 
     container = _cosmos_container()
