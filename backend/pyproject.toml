@@ -21,6 +21,7 @@ dev = [
     "ruff>=0.15.0",
     "mypy>=1.19.0",
     "deptry>=0.24.0",
+    "diff-cover>=9.0.0",
     "httpx>=0.28.0",
 ]
 
@@ -67,11 +68,17 @@ line-ending = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
+markers = [
+    "unit: unit tests (no external services)",
+    "integration: integration tests (require Azure credentials)",
+]
 addopts = [
     "--strict-markers",
     "--strict-config",
+    "-m", "not integration",
     "--cov=src",
     "--cov-report=term-missing",
+    "--cov-report=xml",
 ]
 
 [tool.mypy]
