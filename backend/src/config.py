@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     azure_cosmos_connection_string: str
     azure_cosmos_database: str = "embedbench"
 
+    # Azure OpenAI
+    azure_openai_endpoint: str
+    azure_openai_api_key: str
+    azure_openai_deployment: str = "gpt-4o-mini"
+
     # CORS
     cors_origins: list[str] = ["http://localhost:5173"]
 
