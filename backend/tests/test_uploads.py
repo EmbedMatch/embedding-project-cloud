@@ -71,3 +71,22 @@ def test_upload_file_azure_error(mock_upload_blob: AsyncMock) -> None:
 
     assert response.status_code == 502
     assert "Azure Storage error" in response.json()["detail"]
+
+
+@pytest.mark.unit
+def test_upload_file_too_large() -> None:
+    """Test uploading a file that exceeds the size limit."""
+    # Temporarily set a small max size for testing
+    from src.routers import uploads
+
+    with patch.object(uploads, "MAX_FILE_SIZE", 10):
+        file_content = b"this is more than 10 bytes"
+        file_obj = io.BytesIO(file_content)
+
+        response = client.post(
+            "/uploads/",
+            files={"file": ("test.txt", file_obj, "text/plain")},
+        )
+
+        assert response.status_code == 413
+        assert "File exceeds the 0 MB limit" in response.json()["detail"]
