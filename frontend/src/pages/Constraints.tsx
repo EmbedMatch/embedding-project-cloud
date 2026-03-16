@@ -3,14 +3,30 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { CheckCircle2, Zap, DollarSign, HardDrive } from "lucide-react";
 
 const Constraints = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const uploadData = location.state || {};
+
   const [maxSize, setMaxSize] = useState([500]); // MB
   const [maxCost, setMaxCost] = useState([10]); // $/million tokens
   const [minPerformance, setMinPerformance] = useState([70]); // percentage
+
+  const handleNext = () => {
+    navigate("/leaderboard", {
+      state: {
+        ...uploadData,
+        constraints: {
+          max_size_mb: maxSize[0],
+          max_cost_per_m_tokens: maxCost[0],
+          min_performance_score: minPerformance[0]
+        }
+      }
+    });
+  };
 
   const matchingModels = 47; // Mock count
 
@@ -206,7 +222,7 @@ const Constraints = () => {
           <Button
             variant="hero"
             size="lg"
-            onClick={() => navigate("/leaderboard")}
+            onClick={handleNext}
           >
             View Matching Models
           </Button>

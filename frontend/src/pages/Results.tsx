@@ -1,8 +1,9 @@
+import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useNavigate } from "react-router-dom";
 import {
   Award,
   TrendingUp,
@@ -12,244 +13,230 @@ import {
   Share2,
   CheckCircle2,
   Trophy,
+  Loader2,
 } from "lucide-react";
+
+interface ModelResult {
+  model_name: string;
+  task_type: string;
+  metrics: {
+    accuracy?: number;
+    ndcg_at_10?: number;
+    latency_ms: number;
+    throughput: number;
+  };
+  status: string;
+}
 
 const Results = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const experimentId = location.state?.experimentId;
+  const [experiment, setExperiment] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const benchmarkResults = [
-    {
-      id: "1",
-      name: "bge-large-en-v1.5",
-      organization: "BAAI",
-      overallScore: 92.5,
-      yourDataScore: 94.3,
-      retrievalAccuracy: 95.8,
-      classificationF1: 92.7,
-      speedMs: 12,
-      cost: 2.5,
-      recommendation: "best",
-    },
-    {
-      id: "2",
-      name: "gte-large",
-      organization: "Alibaba",
-      overallScore: 91.2,
-      yourDataScore: 91.8,
-      retrievalAccuracy: 93.5,
-      classificationF1: 90.1,
-      speedMs: 11,
-      cost: 2.3,
-      recommendation: "cost-effective",
-    },
-    {
-      id: "3",
-      name: "e5-large-v2",
-      organization: "Microsoft",
-      overallScore: 90.8,
-      yourDataScore: 90.5,
-      retrievalAccuracy: 92.1,
-      classificationF1: 88.9,
-      speedMs: 13,
-      cost: 2.8,
-    },
-  ];
+  useEffect(() => {
+    if (!experimentId) {
+      setLoading(false);
+      return;
+    }
 
-  const winner = benchmarkResults[0];
+    const fetchExperiment = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+        const response = await fetch(`${apiUrl}/experiments/${experimentId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setExperiment(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch experiment", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchExperiment();
+    // Poll for status every 5 seconds if not completed
+    const interval = setInterval(() => {
+      if (experiment?.status !== "completed" && experiment?.status !== "failed") {
+        fetchExperiment();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [experimentId, experiment?.status]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-hero">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto mb-4" />
+          <h2 className="text-2xl font-bold">Loading results...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (!experiment) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-hero">
+        <div className="text-center max-w-md p-8 bg-card rounded-xl shadow-elevation">
+          <h2 className="text-2xl font-bold mb-4">No Experiment Found</h2>
+          <p className="text-muted-foreground mb-6">
+            We couldn't find the results you're looking for. Please start a new benchmark.
+          </p>
+          <Button onClick={() => navigate("/upload")} variant="hero">
+            Start New Benchmark
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const results: ModelResult[] = experiment.results || [];
+  const completed = experiment.status === "completed";
+  const inProgress = experiment.status === "running" || experiment.status === "pending";
 
   return (
     <div className="min-h-screen bg-gradient-hero pt-20 pb-12">
       <div className="max-w-7xl mx-auto px-6">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <Award className="w-8 h-8 text-accent" />
-            <h1 className="text-4xl font-bold">Benchmark Results</h1>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Trophy className="w-8 h-8 text-accent" />
+              <h1 className="text-4xl font-bold">Benchmark Results</h1>
+            </div>
+            <p className="text-xl text-muted-foreground">
+              {experiment.name} • {experiment.task_type}
+            </p>
           </div>
-          <p className="text-xl text-muted-foreground">
-            Based on your specific data and constraints
-          </p>
+          <div className="flex gap-3">
+            <Button variant="outline">
+              <Share2 className="w-4 h-4 mr-2" />
+              Share
+            </Button>
+            <Button variant="hero" disabled={!completed}>
+              <Download className="w-4 h-4 mr-2" />
+              Download Report
+            </Button>
+          </div>
         </div>
 
-        {/* Winner Card */}
-        <Card className="p-8 mb-8 shadow-glow border-2 border-primary bg-gradient-to-br from-primary/10 via-transparent to-accent/10 relative overflow-hidden">
-          <div className="absolute top-4 right-4">
-            <div className="flex items-center gap-2 px-4 py-2 bg-gradient-primary text-primary-foreground rounded-full font-bold shadow-elevation">
-              <Trophy className="w-5 h-5" />
-              Recommended
+        {inProgress && (
+          <Card className="p-8 mb-8 shadow-elevation bg-primary/5 border-primary/20">
+            <div className="flex items-center gap-4 mb-4">
+              <Loader2 className="w-6 h-6 text-primary animate-spin" />
+              <h2 className="text-xl font-semibold text-primary">Benchmark in Progress</h2>
+              <Badge variant="outline" className="ml-auto text-primary border-primary/30">
+                Status: {experiment.status}
+              </Badge>
             </div>
-          </div>
+            <Progress value={experiment.progress || 0} className="h-3 mb-2" />
+            <p className="text-sm text-muted-foreground">
+              Processing models... This may take a few minutes depending on the dataset size.
+            </p>
+          </Card>
+        )}
 
-          <div className="flex flex-col md:flex-row items-start gap-8">
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex items-center justify-center w-16 h-16 rounded-xl bg-gradient-primary text-primary-foreground font-bold text-2xl shadow-elevation">
-                  1
+        {/* Top Performer Card */}
+        {completed && results.length > 0 && (
+          <Card className="p-8 mb-8 shadow-glow border-primary/30 bg-primary/5 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Award className="w-32 h-32 text-primary" />
+            </div>
+
+            <div className="relative z-10">
+              <Badge className="bg-primary mb-4">Winner</Badge>
+              <h2 className="text-3xl font-bold mb-2">{results[0].model_name}</h2>
+              <p className="text-lg text-muted-foreground mb-6">
+                Highest performance score for {experiment.task_type}
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+                <div>
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1 text-sm uppercase tracking-wider">
+                    <TrendingUp className="w-4 h-4" />
+                    Score
+                  </div>
+                  <div className="text-3xl font-bold text-primary">
+                    {experiment.task_type === 'retrieval'
+                      ? (results[0].metrics.ndcg_at_10! * 100).toFixed(1)
+                      : (results[0].metrics.accuracy! * 100).toFixed(1)}%
+                  </div>
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold mb-1">{winner.name}</h2>
-                  <Badge variant="secondary" className="text-sm">
-                    {winner.organization}
-                  </Badge>
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1 text-sm uppercase tracking-wider">
+                    <Zap className="w-4 h-4" />
+                    Latency
+                  </div>
+                  <div className="text-3xl font-bold">{results[0].metrics.latency_ms.toFixed(0)}ms</div>
                 </div>
-              </div>
-
-              <p className="text-lg text-muted-foreground mb-6">
-                This model achieved the highest performance on your specific dataset while meeting all
-                your constraints. It excels in both retrieval accuracy and classification tasks.
-              </p>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 bg-card rounded-lg border border-border">
-                  <div className="text-xs text-muted-foreground mb-1">Your Data Score</div>
-                  <div className="text-2xl font-bold text-primary">{winner.yourDataScore}%</div>
-                </div>
-                <div className="p-4 bg-card rounded-lg border border-border">
-                  <div className="text-xs text-muted-foreground mb-1">Retrieval</div>
-                  <div className="text-2xl font-bold">{winner.retrievalAccuracy}%</div>
-                </div>
-                <div className="p-4 bg-card rounded-lg border border-border">
-                  <div className="text-xs text-muted-foreground mb-1">Speed</div>
-                  <div className="text-2xl font-bold">{winner.speedMs}ms</div>
-                </div>
-                <div className="p-4 bg-card rounded-lg border border-border">
-                  <div className="text-xs text-muted-foreground mb-1">Cost</div>
-                  <div className="text-2xl font-bold text-accent">${winner.cost}/M</div>
+                <div>
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1 text-sm uppercase tracking-wider">
+                    <TrendingUp className="w-4 h-4" />
+                    Throughput
+                  </div>
+                  <div className="text-3xl font-bold">{results[0].metrics.throughput.toFixed(1)} req/s</div>
                 </div>
               </div>
             </div>
-
-            <div className="flex flex-col gap-3">
-              <Button variant="hero" size="lg" className="w-full">
-                Deploy This Model
-              </Button>
-              <Button variant="outline" size="lg">
-                View Detailed Report
-              </Button>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* Detailed Comparison */}
-        <Card className="p-8 mb-6 shadow-elevation">
-          <h2 className="text-2xl font-bold mb-6">Detailed Comparison</h2>
-
-          <div className="space-y-6">
-            {benchmarkResults.map((model) => (
-              <div
-                key={model.id}
-                className="p-6 border border-border rounded-lg hover:border-primary/30 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold">{model.name}</h3>
-                      <Badge variant="secondary">{model.organization}</Badge>
-                      {model.recommendation === "best" && (
-                        <Badge className="bg-primary">
-                          <Award className="w-3 h-3 mr-1" />
-                          Best Overall
-                        </Badge>
-                      )}
-                      {model.recommendation === "cost-effective" && (
-                        <Badge className="bg-accent text-accent-foreground">
-                          <DollarSign className="w-3 h-3 mr-1" />
-                          Most Cost-Effective
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-primary">{model.yourDataScore}%</div>
-                    <div className="text-xs text-muted-foreground">Overall Score</div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Retrieval Accuracy</span>
-                      <span className="text-sm font-semibold">{model.retrievalAccuracy}%</span>
-                    </div>
-                    <Progress value={model.retrievalAccuracy} className="h-2" />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm text-muted-foreground">Classification F1</span>
-                      <span className="text-sm font-semibold">{model.classificationF1}%</span>
-                    </div>
-                    <Progress value={model.classificationF1} className="h-2" />
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Zap className="w-4 h-4" />
-                      Speed
-                    </div>
-                    <span className="font-semibold">{model.speedMs}ms</span>
-                  </div>
-                </div>
-              </div>
-            ))}
+        <Card className="p-8 shadow-elevation overflow-hidden">
+          <h2 className="text-2xl font-semibold mb-6">Detailed Comparison</h2>
+          <div className="overflow-x-auto mx-[-2rem] px-[2rem]">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="pb-4 font-semibold">Model Name</th>
+                  <th className="pb-4 font-semibold">Status</th>
+                  <th className="pb-4 font-semibold text-right">Score</th>
+                  <th className="pb-4 font-semibold text-right">Latency</th>
+                  <th className="pb-4 font-semibold text-right">Throughput</th>
+                </tr>
+              </thead>
+              <tbody>
+                {results.map((result, index) => (
+                  <tr key={index} className="border-b border-border last:border-0">
+                    <td className="py-4">
+                      <div className="flex items-center gap-3">
+                        {index === 0 && completed && <CheckCircle2 className="w-5 h-5 text-accent" />}
+                        <span className="font-medium">{result.model_name}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 font-mono text-sm uppercase">
+                      <Badge variant={result.status === 'completed' ? 'secondary' : 'outline'}>
+                        {result.status}
+                      </Badge>
+                    </td>
+                    <td className="py-4 text-right">
+                      {result.status === 'completed' ? (
+                        <span className="font-bold text-primary">
+                          {experiment.task_type === 'retrieval'
+                            ? (result.metrics.ndcg_at_10! * 100).toFixed(1)
+                            : (result.metrics.accuracy! * 100).toFixed(1)}%
+                        </span>
+                      ) : '-'}
+                    </td>
+                    <td className="py-4 text-right">
+                      {result.status === 'completed' ? `${result.metrics.latency_ms.toFixed(0)}ms` : '-'}
+                    </td>
+                    <td className="py-4 text-right">
+                      {result.status === 'completed' ? `${result.metrics.throughput.toFixed(1)}/s` : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </Card>
 
-        {/* Key Insights */}
-        <Card className="p-8 mb-6 shadow-elevation">
-          <h2 className="text-2xl font-bold mb-6">Key Insights</h2>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl border border-primary/20">
-              <TrendingUp className="w-8 h-8 text-primary mb-3" />
-              <h3 className="font-semibold text-lg mb-2">Performance Winner</h3>
-              <p className="text-sm text-muted-foreground">
-                bge-large-en-v1.5 outperformed other models by 2.5% on your specific retrieval
-                tasks.
-              </p>
-            </div>
-
-            <div className="p-6 bg-gradient-to-br from-accent/5 to-accent/10 rounded-xl border border-accent/20">
-              <DollarSign className="w-8 h-8 text-accent mb-3" />
-              <h3 className="font-semibold text-lg mb-2">Best Value</h3>
-              <p className="text-sm text-muted-foreground">
-                gte-large offers 97% of top performance at 8% lower cost, saving ~$400/month at
-                scale.
-              </p>
-            </div>
-
-            <div className="p-6 bg-gradient-to-br from-primary/5 to-accent/5 rounded-xl border border-border">
-              <CheckCircle2 className="w-8 h-8 text-primary mb-3" />
-              <h3 className="font-semibold text-lg mb-2">LLM Judge Validation</h3>
-              <p className="text-sm text-muted-foreground">
-                Azure OpenAI GPT-5 validated quality scores with 94% agreement on relevance
-                assessments.
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Actions */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between">
-          <div className="flex gap-3">
-            <Button variant="outline" size="lg">
-              <Download className="w-4 h-4 mr-2" />
-              Export Report
-            </Button>
-            <Button variant="outline" size="lg">
-              <Share2 className="w-4 h-4 mr-2" />
-              Share Results
-            </Button>
-          </div>
-
-          <div className="flex gap-3">
-            <Button variant="outline" size="lg" onClick={() => navigate("/leaderboard")}>
-              Try Different Models
-            </Button>
-            <Button variant="hero" size="lg" onClick={() => navigate("/dashboard")}>
-              Save to Dashboard
-            </Button>
-          </div>
+        <div className="mt-8 flex justify-center">
+          <Button variant="outline" size="lg" onClick={() => navigate("/")}>
+            Back to Dashboard
+          </Button>
         </div>
       </div>
     </div>

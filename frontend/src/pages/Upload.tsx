@@ -11,6 +11,7 @@ const Upload = () => {
   const [taskType, setTaskType] = useState<"retrieval" | "classification">("retrieval");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -28,11 +29,11 @@ const Upload = () => {
     setIsDragging(false);
 
     const file = e.dataTransfer.files[0];
-    if (file && (file.type === "text/csv" || file.type === "application/json")) {
+    if (file && (file.type === "text/csv" || file.type === "application/json" || file.name.endsWith(".csv") || file.name.endsWith(".json"))) {
       setUploadedFile(file);
       toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully.`,
+        title: "File selected",
+        description: `${file.name} is ready for upload.`,
       });
     } else {
       toast({
@@ -48,15 +49,52 @@ const Upload = () => {
     if (file) {
       setUploadedFile(file);
       toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully.`,
+        title: "File selected",
+        description: `${file.name} is ready for upload.`,
       });
     }
   };
 
-  const handleContinue = () => {
-    if (uploadedFile) {
-      navigate("/constraints");
+  const handleContinue = async () => {
+    if (!uploadedFile) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", uploadedFile);
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiUrl}/uploads/`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const data = await response.json();
+      toast({
+        title: "File uploaded successfully",
+        description: "Your data is ready for benchmarking.",
+      });
+
+      // Pass data to constraints page
+      navigate("/constraints", {
+        state: {
+          blob_name: data.blob_name,
+          blob_url: data.url,
+          taskType: taskType
+        }
+      });
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading your file. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -110,11 +148,10 @@ const Upload = () => {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300 ${
-              isDragging
+            className={`border-2 border-dashed rounded-xl p-12 text-center transition-all duration-300 ${isDragging
                 ? "border-primary bg-primary/5 scale-[1.02]"
                 : "border-border hover:border-primary/50"
-            }`}
+              }`}
           >
             <input
               type="file"
@@ -208,9 +245,9 @@ const Upload = () => {
             variant="hero"
             size="lg"
             onClick={handleContinue}
-            disabled={!uploadedFile}
+            disabled={!uploadedFile || isUploading}
           >
-            Continue to Constraints
+            {isUploading ? "Uploading..." : "Continue to Constraints"}
           </Button>
         </div>
       </div>

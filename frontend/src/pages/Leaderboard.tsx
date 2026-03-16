@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Search, ArrowUpDown, CheckCircle2, ExternalLink, PlayCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import {
   Select,
   SelectContent,
@@ -80,15 +81,61 @@ const mockModels: Model[] = [
 
 const Leaderboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  const uploadData = location.state || {};
+
   const [models] = useState<Model[]>(mockModels);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"score" | "size" | "cost">("score");
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [isStarting, setIsStarting] = useState(false);
 
   const toggleModelSelection = (id: string) => {
     setSelectedModels((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     );
+  };
+
+  const handleStartBenchmark = async () => {
+    if (selectedModels.length === 0) return;
+
+    setIsStarting(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiUrl}/experiments/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `Experiment ${new Date().toLocaleString()}`,
+          task_type: uploadData.taskType || "retrieval",
+          dataset_url: uploadData.blob_url || "https://example.com/dataset.csv",
+          models: selectedModels.map(id => {
+            const m = mockModels.find(model => model.id === id);
+            return m ? m.name : id;
+          }),
+          constraints: uploadData.constraints || {}
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to create experiment");
+
+      const experiment = await response.json();
+      toast({
+        title: "Benchmark started",
+        description: "Your experiment has been queued for execution.",
+      });
+
+      navigate("/results", { state: { experimentId: experiment.id } });
+    } catch (error) {
+      toast({
+        title: "Error starting benchmark",
+        description: "There was an error creating the experiment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsStarting(false);
+    }
   };
 
   const sortedModels = [...models].sort((a, b) => {
@@ -160,9 +207,9 @@ const Leaderboard = () => {
                   {selectedModels.length} model{selectedModels.length > 1 ? "s" : ""} selected
                 </span>
               </div>
-              <Button variant="hero" onClick={() => navigate("/results")}>
+              <Button variant="hero" onClick={handleStartBenchmark} disabled={isStarting}>
                 <PlayCircle className="w-4 h-4 mr-2" />
-                Start Benchmarking
+                {isStarting ? "Starting..." : "Start Benchmarking"}
               </Button>
             </div>
           </Card>
@@ -173,11 +220,10 @@ const Leaderboard = () => {
           {filteredModels.map((model, index) => (
             <Card
               key={model.id}
-              className={`p-6 shadow-elevation transition-all duration-300 hover:shadow-glow cursor-pointer ${
-                selectedModels.includes(model.id)
+              className={`p-6 shadow-elevation transition-all duration-300 hover:shadow-glow cursor-pointer ${selectedModels.includes(model.id)
                   ? "border-2 border-primary bg-primary/5"
                   : "hover:border-primary/30"
-              }`}
+                }`}
               onClick={() => toggleModelSelection(model.id)}
             >
               <div className="flex items-start justify-between gap-4">
@@ -246,10 +292,10 @@ const Leaderboard = () => {
           <Button
             variant="hero"
             size="lg"
-            disabled={selectedModels.length === 0}
-            onClick={() => navigate("/results")}
+            disabled={selectedModels.length === 0 || isStarting}
+            onClick={handleStartBenchmark}
           >
-            Benchmark Selected ({selectedModels.length})
+            {isStarting ? "Starting..." : `Benchmark Selected (${selectedModels.length})`}
           </Button>
         </div>
       </div>
