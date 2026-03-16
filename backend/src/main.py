@@ -9,12 +9,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from openai import AzureOpenAI
 
 from src.config import settings
+from src.routers.experiments import router as experiments_router
 
 app = FastAPI(
     title="Embedding Model Selection Platform",
     description="API for benchmarking and selecting embedding models",
     version="0.1.0",
 )
+
+app.include_router(experiments_router)
 
 app.add_middleware(
     CORSMiddleware,
