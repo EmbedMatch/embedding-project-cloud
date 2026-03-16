@@ -17,10 +17,7 @@ app = func.FunctionApp()
     connection="AZURE_STORAGE_CONNECTION_STRING",
 )
 def benchmark_job_listener(msg: func.QueueMessage) -> None:
-    """Read queue messages from benchmark-jobs and log payload details.
-
-    
-    """
+    """Read queue messages from benchmark-jobs and log payload details."""
     raw_body = msg.get_body().decode("utf-8", errors="replace")
     parsed_body: Any = raw_body
 

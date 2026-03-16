@@ -1,7 +1,5 @@
 """Chat API endpoints for Azure OpenAI connectivity checks."""
 
-from typing import Any
-
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from openai import APIConnectionError, APIError, AuthenticationError, AzureOpenAI, NotFoundError
@@ -71,10 +69,7 @@ async def chat_endpoint(payload: ChatRequest) -> ChatResponse:
     except (AuthenticationError, NotFoundError) as exc:
         raise HTTPException(
             status_code=502,
-            detail=(
-                "Azure OpenAI authentication or deployment failed. "
-                "Verify endpoint, API key, and deployment name."
-            ),
+            detail=("Azure OpenAI authentication or deployment failed. Verify endpoint, API key, and deployment name."),
         ) from exc
     except (APIConnectionError, APIError) as exc:
         raise HTTPException(

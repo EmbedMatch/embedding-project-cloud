@@ -66,7 +66,7 @@ def test_create_experiment(mock_get_container: MagicMock) -> None:
 
     mock_container.create_item.assert_called_once()
     assert result["name"] == "MyExp"
-    assert "_rid" not in result  # system key stripped
+    assert "_rid" not in result
     assert "_ts" not in result
 
 
