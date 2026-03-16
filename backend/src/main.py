@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from openai import AzureOpenAI
 
 from src.config import settings
+from src.routers import uploads
 
 app = FastAPI(
     title="Embedding Model Selection Platform",
@@ -23,6 +24,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(uploads.router)
 
 
 @app.get("/")
