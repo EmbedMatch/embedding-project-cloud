@@ -35,7 +35,7 @@ repos:
     hooks:
       - id: mypy
         files: ^backend/src/
-        additional_dependencies: [fastapi>=0.135.0, pydantic>=2.12.0, pydantic-settings>=2.13.0, httpx>=0.28.0, azure-storage-blob>=12.25.0, azure-cosmos>=4.9.0, openai>=1.82.0]
+        additional_dependencies: [fastapi>=0.135.0, pydantic>=2.12.0, pydantic-settings>=2.13.0, httpx>=0.28.0, azure-storage-blob>=12.25.0, azure-cosmos>=4.9.0, azure-storage-queue>=12.15.0, openai>=1.82.0]
         args: [--strict, --python-version=3.12]
 
   # ── Frontend: lint + typecheck ──
@@ -43,7 +43,7 @@ repos:
     hooks:
       - id: eslint
         name: eslint
-        entry: bash -c 'cd frontend && npx eslint --max-warnings=0 "${@#frontend/}"' --
+        entry: bash -c 'cd frontend && npx eslint --max-warnings=0 --no-warn-ignored "${@#frontend/}"' --
         language: system
         files: ^frontend/src/.*\.(ts|tsx)$
         types: [file]
