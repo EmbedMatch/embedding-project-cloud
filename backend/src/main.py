@@ -10,6 +10,7 @@ from openai import AzureOpenAI
 
 from src.config import settings
 from src.routers import uploads
+from src.routers.chat import router as chat_router
 from src.routers.experiments import router as experiments_router
 
 app = FastAPI(
@@ -19,6 +20,7 @@ app = FastAPI(
 )
 
 app.include_router(experiments_router)
+app.include_router(chat_router)
 
 app.add_middleware(
     CORSMiddleware,
