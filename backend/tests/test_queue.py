@@ -18,7 +18,8 @@ def test_enqueue_benchmark_job_success() -> None:
     enqueue_benchmark_job(mock_queue_service, "exp-123")
 
     mock_queue_client.send_message.assert_called_once_with("exp-123")
-    assert mock_queue_client._message_encode_policy is not None
+    _, kwargs = mock_queue_service.get_queue_client.call_args
+    assert "message_encode_policy" in kwargs
 
 
 @pytest.mark.unit
