@@ -13,7 +13,7 @@ Run **after** the App Services are deployed (PR #19 merged and deploy workflows 
 | `embed-match-frontend` (frontend App Service) | IP allowlist — only team members |
 | `embed-db` (Cosmos DB) | Whitelist all **possible** outbound IPs of the backend App Service |
 
-> ⚠️ **Important**: Use `possibleOutboundIpAddresses` (up to ~20 IPs), NOT just  
+> ⚠️ **Important**: Use `possibleOutboundIpAddresses` (up to ~20 IPs), NOT just
 > `outboundIpAddresses` (4-5 IPs). Under load Azure may use any of the "possible" ones,
 > and Cosmos DB will reject requests from any unwhitelisted IP.
 
@@ -73,7 +73,7 @@ done
 
 ## Step 2 — Whitelist Backend Outbound IPs on Cosmos DB
 
-The backend App Service has a pool of possible outbound IPs that Azure may use. 
+The backend App Service has a pool of possible outbound IPs that Azure may use.
 You must whitelist **all** of them on Cosmos DB, not just the ones shown at a point in time.
 
 ### Get all possible outbound IPs
