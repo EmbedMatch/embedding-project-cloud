@@ -1,0 +1,57 @@
+name: Deploy Function App
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "functions/**"
+      - ".github/workflows/deploy-function.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bundle Python packages (fastembed + ONNX Runtime)
+        run: |
+          pip install -q -t fn_pkgs \
+            azure-functions \
+            "azure-cosmos>=4.9.0" \
+            "azure-storage-blob>=12.25.0" \
+            "openai>=1.82.0" \
+            "numpy>=2.0.0" \
+            fastembed
+
+      - name: Build deployment zip
+        run: |
+          mkdir -p fn-bundle/.python_packages/lib/site-packages
+          cp -r fn_pkgs/* fn-bundle/.python_packages/lib/site-packages/
+          cp functions/benchmark/function_app.py fn-bundle/
+          cp functions/benchmark/host.json fn-bundle/
+          cp functions/benchmark/requirements.txt fn-bundle/
+          cd fn-bundle && zip -r ../function.zip . -x "*.pyc" -x "*/__pycache__/*"
+          ls -lh ../function.zip
+
+      - name: Deploy via Kudu zip deploy
+        env:
+          PUBLISH_PROFILE: ${{ secrets.AZURE_FUNCTION_PUBLISH_PROFILE }}
+        run: |
+          python3 -c "
+          import os, xml.etree.ElementTree as ET
+          root = ET.fromstring(os.environ['PUBLISH_PROFILE'])
+          p = root.find('.//publishProfile[@publishMethod=\"MSDeploy\"]')
+          host = p.get('publishUrl').replace(':443', '')
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write(f'SCM_HOST={host}\n')
+              f.write(f'KUDU_CREDS={p.get(\"userName\")}:{p.get(\"userPWD\")}\n')
+          "
+      - name: Push to Kudu
+        run: |
+          curl -sf -X POST \
+            "https://${SCM_HOST}/api/zipdeploy" \
+            -u "${KUDU_CREDS}" \
+            --data-binary @function.zip \
+            -H "Content-Type: application/zip"
