@@ -14,6 +14,10 @@ from src.cosmos_client import (
     list_experiments,
 )
 from src.main import app
+from src.queue import get_queue_service
+
+# Override queue dependency so tests don't need a real connection string
+app.dependency_overrides[get_queue_service] = lambda: MagicMock()
 
 client = TestClient(app)
 
@@ -121,9 +125,10 @@ def test_list_experiments(mock_get_container: MagicMock) -> None:
 
 
 @pytest.mark.unit
+@patch("src.routers.experiments.enqueue_benchmark_job")
 @patch("src.routers.experiments.create_experiment")
-def test_post_experiment(mock_create: MagicMock) -> None:
-    """POST /experiments/ should create and return an experiment."""
+def test_post_experiment(mock_create: MagicMock, mock_enqueue: MagicMock) -> None:
+    """POST /experiments/ should create, enqueue, and return an experiment."""
     mock_create.return_value = {
         "id": "exp-1",
         "name": "Test",
@@ -142,6 +147,7 @@ def test_post_experiment(mock_create: MagicMock) -> None:
     )
     assert response.status_code == 201
     assert response.json()["id"] == "exp-1"
+    mock_enqueue.assert_called_once()
 
 
 @pytest.mark.unit

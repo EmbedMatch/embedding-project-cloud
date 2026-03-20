@@ -29,9 +29,9 @@ jobs:
         run: |
           mkdir -p fn-bundle/.python_packages/lib/site-packages
           cp -r fn_pkgs/* fn-bundle/.python_packages/lib/site-packages/
-          cp functions/benchmark/function_app.py fn-bundle/
-          cp functions/benchmark/host.json fn-bundle/
-          cp functions/benchmark/requirements.txt fn-bundle/
+          cp functions/function_app.py fn-bundle/
+          cp functions/host.json fn-bundle/
+          cp functions/requirements.txt fn-bundle/
           cd fn-bundle && zip -r ../function.zip . -x "*.pyc" -x "*/__pycache__/*"
           ls -lh ../function.zip
 

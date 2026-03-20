@@ -43,10 +43,11 @@ repos:
     hooks:
       - id: eslint
         name: eslint
-        entry: bash -c 'cd frontend && npx eslint --max-warnings=0 --no-warn-ignored "${@#frontend/}"' --
+        entry: bash -c 'cd frontend && npx eslint --max-warnings=0 --no-warn-ignored .'
         language: system
         files: ^frontend/src/.*\.(ts|tsx)$
         types: [file]
+        pass_filenames: false
       - id: tsc
         name: tsc
         entry: bash -c 'cd frontend && npx tsc --noEmit'

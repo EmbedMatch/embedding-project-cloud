@@ -43,6 +43,31 @@ jobs:
       - name: Diff coverage (changed lines must be ≥80% covered)
         run: uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
 
+  functions:
+    name: Function checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: functions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff lint
+        run: pip install ruff && ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Tests
+        run: python -m pytest tests/ -v
+
   frontend:
     name: Frontend checks
     runs-on: ubuntu-latest
