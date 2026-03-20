@@ -53,10 +53,8 @@ CFG = Config()
 
 def cosmos_container() -> ContainerProxy:
     client = CosmosClient.from_connection_string(CFG.cosmos_conn)
-    return (
-        client.get_database_client(CFG.cosmos_db).get_container_client(
-            CFG.cosmos_container
-        )
+    return client.get_database_client(CFG.cosmos_db).get_container_client(
+        CFG.cosmos_container
     )
 
 
@@ -129,9 +127,7 @@ def embed_batch(
     return np.array(all_embeddings)
 
 
-def run_benchmark(
-    client: AzureOpenAI, texts: list[str]
-) -> dict[str, Any]:
+def run_benchmark(client: AzureOpenAI, texts: list[str]) -> dict[str, Any]:
     """Embed all texts and return stats.
 
     Relevance score is a placeholder — real LLM-as-judge scoring

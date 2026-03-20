@@ -1,0 +1,41 @@
+services:
+  backend:
+    build:
+      context: ../backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ../backend/src:/app/src
+    command: uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  functions:
+    build:
+      context: ../functions
+      dockerfile: ../infra/Dockerfile.functions
+    env_file:
+      - ../.env
+    environment:
+      - FUNCTIONS_WORKER_RUNTIME=python
+    volumes:
+      - ../functions/function_app.py:/home/site/wwwroot/function_app.py
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../infra/Dockerfile.frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../frontend/src:/app/src
+      - ../frontend/public:/app/public
+    depends_on:
+      - backend
+    restart: unless-stopped
