@@ -1,0 +1,11 @@
+text
+"The transformer architecture relies on self-attention mechanisms to process sequences in parallel, replacing recurrent layers entirely."
+"Backpropagation computes gradients of the loss function with respect to each weight by applying the chain rule layer by layer."
+"Convolutional neural networks apply learned filters to detect spatial patterns like edges, textures, and shapes in images."
+"Gradient descent iteratively updates model parameters in the direction that minimizes the loss function."
+"Transfer learning reuses a model trained on a large dataset for a different but related task by fine-tuning the final layers."
+"Recurrent neural networks process sequential data by maintaining a hidden state that captures information from previous timesteps."
+"Batch normalization normalizes layer inputs to reduce internal covariate shift and accelerate training convergence."
+"Dropout randomly deactivates neurons during training to prevent overfitting and improve generalization."
+"Attention mechanisms allow neural networks to focus on the most relevant parts of the input when producing each output element."
+"Generative adversarial networks consist of a generator and discriminator trained in opposition to produce realistic synthetic data."
