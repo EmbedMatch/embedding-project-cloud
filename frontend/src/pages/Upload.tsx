@@ -1,16 +1,22 @@
 import { useState } from "react";
-import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle, Download } from "lucide-react";
+import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle, Loader2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { uploadFile, createExperiment } from "@/lib/api";
+
+const SAMPLE_DATASETS = [
+  { name: "Tech Articles", file: "tech-articles.csv", description: "10 ML/AI concept descriptions" },
+  { name: "Product Reviews", file: "product-reviews.csv", description: "10 consumer product descriptions" },
+  { name: "News Headlines", file: "news-headlines.csv", description: "10 world news stories" },
+];
 
 const Upload = () => {
-  const [taskType, setTaskType] = useState<"retrieval" | "classification">("retrieval");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -30,16 +36,9 @@ const Upload = () => {
     const file = e.dataTransfer.files[0];
     if (file && (file.type === "text/csv" || file.type === "application/json")) {
       setUploadedFile(file);
-      toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully.`,
-      });
+      toast({ title: "File selected", description: `${file.name} ready to upload.` });
     } else {
-      toast({
-        title: "Invalid file type",
-        description: "Please upload a CSV or JSON file.",
-        variant: "destructive",
-      });
+      toast({ title: "Invalid file type", description: "Please upload a CSV or JSON file.", variant: "destructive" });
     }
   };
 
@@ -47,16 +46,42 @@ const Upload = () => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFile(file);
-      toast({
-        title: "File uploaded",
-        description: `${file.name} has been uploaded successfully.`,
-      });
+      toast({ title: "File selected", description: `${file.name} ready to upload.` });
     }
   };
 
-  const handleContinue = () => {
-    if (uploadedFile) {
-      navigate("/constraints");
+  const handleUseSample = async (sampleFile: string) => {
+    const res = await fetch(`/samples/${sampleFile}`);
+    const blob = await res.blob();
+    const file = new File([blob], sampleFile, { type: "text/csv" });
+    setUploadedFile(file);
+    toast({ title: "Sample loaded", description: `${sampleFile} ready to upload.` });
+  };
+
+  const handleSubmit = async () => {
+    if (!uploadedFile) return;
+    setIsSubmitting(true);
+
+    try {
+      const upload = await uploadFile(uploadedFile);
+
+      const datasetType = uploadedFile.name.endsWith(".json") ? "json" : "csv";
+      const experiment = await createExperiment({
+        name: uploadedFile.name.replace(/\.[^.]+$/, ""),
+        blob_name: upload.blob_name,
+        dataset_type: datasetType,
+      });
+
+      toast({ title: "Benchmark started", description: "Your experiment is being processed." });
+      navigate(`/results?id=${experiment.id}`);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Something went wrong",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -66,45 +91,33 @@ const Upload = () => {
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-3">Upload Your Data</h1>
           <p className="text-xl text-muted-foreground">
-            Provide your task-specific data to benchmark embedding models
+            Upload a dataset to benchmark how well embedding models capture its semantic structure
           </p>
         </div>
 
-        {/* Task Type Selection */}
+        {/* Sample Datasets */}
         <Card className="p-8 mb-6 shadow-elevation">
-          <h2 className="text-2xl font-semibold mb-4">Select Task Type</h2>
-          <RadioGroup value={taskType} onValueChange={(v: string) => setTaskType(v as "retrieval" | "classification")} className="gap-4">
-            <div className="flex items-start space-x-3 p-4 border-2 border-border rounded-lg hover:border-primary transition-colors cursor-pointer">
-              <RadioGroupItem value="retrieval" id="retrieval" className="mt-1" />
-              <Label htmlFor="retrieval" className="cursor-pointer flex-1">
-                <div className="font-semibold text-lg mb-1">Retrieval</div>
-                <p className="text-sm text-muted-foreground">
-                  Upload queries and documents. We'll evaluate how well models retrieve relevant documents.
-                </p>
-                <div className="mt-2 text-xs text-accent font-medium">
-                  Format: CSV/JSON with 'query' and 'document' fields
+          <h2 className="text-2xl font-semibold mb-4">Try a Sample Dataset</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {SAMPLE_DATASETS.map((sample) => (
+              <button
+                key={sample.file}
+                onClick={() => handleUseSample(sample.file)}
+                className="p-4 border-2 border-border rounded-lg hover:border-primary transition-colors text-left"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Download className="w-4 h-4 text-primary" />
+                  <span className="font-semibold">{sample.name}</span>
                 </div>
-              </Label>
-            </div>
-
-            <div className="flex items-start space-x-3 p-4 border-2 border-border rounded-lg hover:border-primary transition-colors cursor-pointer">
-              <RadioGroupItem value="classification" id="classification" className="mt-1" />
-              <Label htmlFor="classification" className="cursor-pointer flex-1">
-                <div className="font-semibold text-lg mb-1">Classification</div>
-                <p className="text-sm text-muted-foreground">
-                  Upload labeled examples. We'll test classification accuracy across models.
-                </p>
-                <div className="mt-2 text-xs text-accent font-medium">
-                  Format: CSV/JSON with 'text' and 'label' fields
-                </div>
-              </Label>
-            </div>
-          </RadioGroup>
+                <p className="text-sm text-muted-foreground">{sample.description}</p>
+              </button>
+            ))}
+          </div>
         </Card>
 
         {/* Upload Area */}
         <Card className="p-8 mb-6 shadow-elevation">
-          <h2 className="text-2xl font-semibold mb-4">Upload Data File</h2>
+          <h2 className="text-2xl font-semibold mb-4">Or Upload Your Own</h2>
 
           <div
             onDragOver={handleDragOver}
@@ -135,7 +148,7 @@ const Upload = () => {
                   </Button>
                 </Label>
                 <p className="text-sm text-muted-foreground mt-4">
-                  Supported formats: CSV, JSON (max 50MB)
+                  CSV or JSON with a <code className="text-primary">text</code> column (max 50MB)
                 </p>
               </>
             ) : (
@@ -160,46 +173,23 @@ const Upload = () => {
           </div>
         </Card>
 
-        {/* Data Preview */}
+        {/* Format Hint */}
         {uploadedFile && (
-          <Card className="p-8 mb-6 shadow-elevation">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold">Data Preview</h2>
-              <Button variant="ghost" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Download Sample
-              </Button>
-            </div>
-
-            <div className="bg-muted/30 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-              <div className="text-muted-foreground mb-2">// Sample data structure</div>
-              {taskType === "retrieval" ? (
-                <pre>{`{
-  "queries": ["How to train neural networks?"],
-  "documents": ["A comprehensive guide to training..."],
-  "relevance_scores": [0.95]
-}`}</pre>
-              ) : (
-                <pre>{`{
-  "text": ["This product is amazing!"],
-  "label": ["positive"]
-}`}</pre>
-              )}
-            </div>
-
-            <div className="mt-4 p-4 bg-accent/5 border border-accent/20 rounded-lg flex items-start gap-3">
+          <Card className="p-6 mb-6 shadow-elevation">
+            <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-accent mt-0.5" />
               <div className="text-sm">
-                <div className="font-medium mb-1">Data Validation</div>
+                <div className="font-medium mb-1">Expected Format</div>
                 <p className="text-muted-foreground">
-                  Your data will be validated for correct format and completeness before benchmarking begins.
+                  CSV or JSON with a <code className="text-primary">text</code> column.
+                  Each row should contain a document or passage to embed.
                 </p>
               </div>
             </div>
           </Card>
         )}
 
-        {/* Continue Button */}
+        {/* Submit Button */}
         <div className="flex justify-end gap-4">
           <Button variant="outline" size="lg" onClick={() => navigate("/")}>
             Cancel
@@ -207,10 +197,17 @@ const Upload = () => {
           <Button
             variant="hero"
             size="lg"
-            onClick={handleContinue}
-            disabled={!uploadedFile}
+            onClick={handleSubmit}
+            disabled={!uploadedFile || isSubmitting}
           >
-            Continue to Constraints
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Uploading...
+              </>
+            ) : (
+              "Start Benchmark"
+            )}
           </Button>
         </div>
       </div>

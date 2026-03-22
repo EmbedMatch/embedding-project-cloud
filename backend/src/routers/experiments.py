@@ -2,17 +2,23 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from azure.storage.queue import QueueServiceClient
+from fastapi import APIRouter, Depends, HTTPException
 
 from src.cosmos_client import ExperimentCreate, create_experiment, get_experiment, list_experiments
+from src.queue import enqueue_benchmark_job, get_queue_service
 
 router = APIRouter(prefix="/experiments", tags=["experiments"])
 
 
 @router.post("/", status_code=201)
-async def create_experiment_endpoint(payload: ExperimentCreate) -> dict[str, Any]:
-    """Create a new experiment in Cosmos DB."""
+async def create_experiment_endpoint(
+    payload: ExperimentCreate,
+    queue_service: QueueServiceClient = Depends(get_queue_service),
+) -> dict[str, Any]:
+    """Create a new experiment in Cosmos DB and enqueue benchmark job."""
     doc = create_experiment(payload)
+    enqueue_benchmark_job(queue_service, doc["id"])
     return doc
 
 

@@ -1,0 +1,62 @@
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+export async function uploadFile(file: File): Promise<{ blob_name: string; url: string; filename: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_URL}/uploads/`, { method: "POST", body: formData });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Upload failed");
+  }
+  return res.json();
+}
+
+export async function createExperiment(data: {
+  name: string;
+  blob_name: string;
+  dataset_type: string;
+  description?: string;
+}): Promise<{ id: string; status: string }> {
+  const res = await fetch(`${API_URL}/experiments/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to create experiment");
+  }
+  return res.json();
+}
+
+export interface ExperimentResult {
+  id: string;
+  name: string;
+  status: string;
+  blob_name: string;
+  dataset_type: string;
+  created_at: string;
+  results: {
+    model: string;
+    num_texts: number;
+    dimensions: number;
+    latency_ms: number;
+    relevance_score: number;
+  } | null;
+}
+
+export async function getExperiment(id: string): Promise<ExperimentResult> {
+  const res = await fetch(`${API_URL}/experiments/${id}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Experiment not found");
+  }
+  return res.json();
+}
+
+export async function listExperiments(): Promise<ExperimentResult[]> {
+  const res = await fetch(`${API_URL}/experiments/`);
+  if (!res.ok) throw new Error("Failed to list experiments");
+  return res.json();
+}

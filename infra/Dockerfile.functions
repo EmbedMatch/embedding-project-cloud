@@ -1,0 +1,10 @@
+FROM mcr.microsoft.com/azure-functions/python:4-python3.12
+
+ENV AzureWebJobsScriptRoot=/home/site/wwwroot
+ENV AzureFunctionsJobHost__Logging__Console__IsEnabled=true
+
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY function_app.py /home/site/wwwroot/function_app.py
+COPY host.json /home/site/wwwroot/host.json
