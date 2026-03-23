@@ -9,9 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 import { uploadFile, createExperiment } from "@/lib/api";
 
 const SAMPLE_DATASETS = [
-  { name: "Tech Articles", file: "tech-articles.csv", description: "10 ML/AI concept descriptions" },
-  { name: "Product Reviews", file: "product-reviews.csv", description: "10 consumer product descriptions" },
-  { name: "News Headlines", file: "news-headlines.csv", description: "10 world news stories" },
+  { name: "Tech Articles", file: "tech-articles.csv", description: "100 science & technology articles (AG News)" },
+  { name: "Product Reviews", file: "product-reviews.csv", description: "100 Amazon product reviews" },
+  { name: "News Headlines", file: "news-headlines.csv", description: "100 world/sports/business headlines (AG News)" },
 ];
 
 const AVAILABLE_MODELS = [
