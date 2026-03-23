@@ -5,6 +5,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Award, Loader2, AlertCircle } from "lucide-react";
 import { type ExperimentResult, getExperiment } from "@/lib/api";
 
+type ModelResult = NonNullable<ExperimentResult["results"]>[number];
+
 const Results = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -102,60 +104,103 @@ const Results = () => {
   const results = experiment.results;
 
   return (
-    <div className="min-h-screen bg-gradient-hero pt-20 pb-12">
-      <div className="max-w-5xl mx-auto px-6">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <Award className="w-8 h-8 text-accent" />
-            <h1 className="text-4xl font-bold">Benchmark Results</h1>
+      <div className="min-h-screen bg-gradient-hero pt-20 pb-12">
+          <div className="max-w-5xl mx-auto px-6">
+              <div className="mb-8">
+                  <div className="flex items-center gap-3 mb-3">
+                      <Award className="w-8 h-8 text-accent" />
+                      <h1 className="text-4xl font-bold">Benchmark Results</h1>
+                  </div>
+                  <p className="text-xl text-muted-foreground">
+                      Experiment: {experiment.name}
+                  </p>
+              </div>
+
+              {results && results.length > 0 && (
+                  <Card className="p-8 mb-6 shadow-elevation">
+                      <h2 className="text-2xl font-bold mb-6">
+                          Model Comparison ({results.length} models)
+                      </h2>
+
+                      {/* Summary comparison table */}
+                      <div className="overflow-x-auto mb-8">
+                          <table className="w-full text-sm">
+                              <thead>
+                                  <tr className="border-b">
+                                      <th className="text-left py-3 pr-4">Model</th>
+                                      <th className="text-center py-3 pr-4">Dimensions</th>
+                                      <th className="text-center py-3 pr-4">Latency</th>
+                                      <th className="text-center py-3 pr-4">Relevance</th>
+                                      <th className="text-center py-3">Retrieval Accuracy</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  {results.map((r: ModelResult, idx: number) => (
+                                      <tr key={idx} className="border-b last:border-0">
+                                          <td className="py-3 pr-4 font-bold text-primary">{r.model}</td>
+                                          {r.error ? (
+                                              <td colSpan={4} className="py-3 text-center text-destructive">
+                                                  {r.error}
+                                              </td>
+                                          ) : (
+                                              <>
+                                                  <td className="py-3 pr-4 text-center">{r.dimensions}</td>
+                                                  <td className="py-3 pr-4 text-center">{r.latency_ms?.toFixed(0)}ms</td>
+                                                  <td className="py-3 pr-4 text-center font-bold">{r.relevance_score}/10</td>
+                                                  <td className="py-3 text-center font-bold">{(r.retrieval_accuracy * 100).toFixed(1)}%</td>
+                                              </>
+                                          )}
+                                      </tr>
+                                  ))}
+                              </tbody>
+                          </table>
+                      </div>
+
+                      {/* Per-model detail cards */}
+                      {results.filter((r: ModelResult) => !r.error).map((r: ModelResult, idx: number) => (
+                          <div key={idx} className="mb-6 p-4 bg-muted/20 rounded-lg">
+                              <h3 className="text-lg font-bold mb-3">{r.model}</h3>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                  <div className="p-3 bg-muted/30 rounded">
+                                      <div className="text-xs text-muted-foreground">Texts</div>
+                                      <div className="text-xl font-bold">{r.num_texts}</div>
+                                  </div>
+                                  <div className="p-3 bg-muted/30 rounded">
+                                      <div className="text-xs text-muted-foreground">Dimensions</div>
+                                      <div className="text-xl font-bold">{r.dimensions}</div>
+                                  </div>
+                                  <div className="p-3 bg-muted/30 rounded">
+                                      <div className="text-xs text-muted-foreground">Latency</div>
+                                      <div className="text-xl font-bold">{r.latency_ms?.toFixed(0)}ms</div>
+                                  </div>
+                                  <div className="p-3 bg-muted/30 rounded">
+                                      <div className="text-xs text-muted-foreground">Retrieval Accuracy</div>
+                                      <div className="text-xl font-bold">{(r.retrieval_accuracy * 100).toFixed(1)}%</div>
+                                  </div>
+                              </div>
+                          </div>
+                      ))}
+                  </Card>
+              )}
+
+              <div className="flex justify-between">
+                  <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={() => navigate("/upload")}
+                  >
+                      New Benchmark
+                  </Button>
+                  <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={() => navigate("/")}
+                  >
+                      Home
+                  </Button>
+              </div>
           </div>
-          <p className="text-xl text-muted-foreground">
-            Experiment: {experiment.name}
-          </p>
-        </div>
-
-        {results && (
-          <Card className="p-8 mb-6 shadow-elevation">
-            <h2 className="text-2xl font-bold mb-6">Embedding Summary</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-xs text-muted-foreground mb-1">Model</div>
-                <div className="text-lg font-bold text-primary">{results.model}</div>
-              </div>
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-xs text-muted-foreground mb-1">Texts Embedded</div>
-                <div className="text-2xl font-bold">{results.num_texts}</div>
-              </div>
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-xs text-muted-foreground mb-1">Dimensions</div>
-                <div className="text-2xl font-bold">{results.dimensions}</div>
-              </div>
-              <div className="p-4 bg-muted/30 rounded-lg">
-                <div className="text-xs text-muted-foreground mb-1">Latency</div>
-                <div className="text-2xl font-bold">{results.latency_ms.toFixed(0)}ms</div>
-              </div>
-            </div>
-
-            <div className="mt-6 p-4 bg-accent/5 border border-accent/20 rounded-lg">
-              <div className="text-sm font-medium mb-1">Relevance Score (placeholder)</div>
-              <div className="text-3xl font-bold text-primary">{(results.relevance_score * 100).toFixed(1)}%</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                This is a placeholder score. LLM-as-judge evaluation will replace this in Sprint 2.
-              </p>
-            </div>
-          </Card>
-        )}
-
-        <div className="flex justify-between">
-          <Button variant="outline" size="lg" onClick={() => navigate("/upload")}>
-            New Benchmark
-          </Button>
-          <Button variant="outline" size="lg" onClick={() => navigate("/")}>
-            Home
-          </Button>
-        </div>
       </div>
-    </div>
   );
 };
 

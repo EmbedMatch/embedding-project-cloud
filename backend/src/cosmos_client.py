@@ -35,7 +35,7 @@ class Experiment(ExperimentBase):
     status: str = "created"  # created → processing → completed → failed
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
-    results: dict[str, Any] | None = None
+    results: list[dict[str, Any]] | dict[str, Any] | None = None
 
 
 # ──────────────────────────────────────────────

@@ -31,19 +31,29 @@ export async function createExperiment(data: {
 }
 
 export interface ExperimentResult {
-  id: string;
-  name: string;
-  status: string;
-  blob_name: string;
-  dataset_type: string;
-  created_at: string;
-  results: {
-    model: string;
-    num_texts: number;
-    dimensions: number;
-    latency_ms: number;
-    relevance_score: number;
-  } | null;
+    id: string;
+    name: string;
+    status: string;
+    blob_name: string;
+    dataset_type: string;
+    created_at: string;
+    results:
+        | {
+              model: string;
+              num_texts: number;
+              dimensions: number;
+              latency_ms: number;
+              relevance_score: number;
+              retrieval_accuracy: number;
+              judge_scores: {
+                  query: string;
+                  document_preview: string;
+                  score: number;
+                  reason: string;
+              }[];
+              error?: string;
+          }[]
+        | null;
 }
 
 export async function getExperiment(id: string): Promise<ExperimentResult> {
