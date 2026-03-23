@@ -401,7 +401,7 @@ def score_relevance_llm(
                     "reason": parsed.get("reason", ""),
                 }
             )
-        except json.JSONDecodeError, ValueError:
+        except (json.JSONDecodeError, ValueError):
             logging.warning("Failed to parse LLM judge response: %s", raw)
             scores.append(
                 {
