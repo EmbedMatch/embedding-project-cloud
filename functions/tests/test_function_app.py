@@ -85,14 +85,30 @@ def test_run_benchmark_returns_expected_fields():
     mock_client.embeddings.create.return_value = mock_resp
 
     texts = ["hello", "world"]
-    result = run_benchmark(mock_client, texts)
+    queries = ["search hello", "search world"]
+    judge_scores = [
+        {
+            "query": "search hello",
+            "document_preview": "hello",
+            "score": 8,
+            "reason": "relevant",
+        },
+        {
+            "query": "search world",
+            "document_preview": "world",
+            "score": 9,
+            "reason": "relevant",
+        },
+    ]
+    result = run_benchmark(mock_client, texts, queries, judge_scores)
 
     assert result["model"] == Config().embedding_model
     assert result["num_texts"] == 2
     assert result["dimensions"] == 3
     assert "latency_ms" in result
-    assert 0.0 <= result["relevance_score"] <= 1.0
-    mock_client.embeddings.create.assert_called_once()
+    assert 0.0 <= result["relevance_score"] <= 10.0
+    assert "retrieval_accuracy" in result
+    assert result["judge_scores"] == judge_scores
 
 
 @pytest.mark.unit
