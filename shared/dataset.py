@@ -107,7 +107,9 @@ def parse_dataset(
             # No list-valued keys — wrap the single object in a list
             return [parsed]
 
-    raise ValueError(f"Unsupported dataset_type: {dataset_type!r}. Must be 'csv' or 'json'.")
+    raise ValueError(
+        f"Unsupported dataset_type: {dataset_type!r}. Must be 'csv' or 'json'."
+    )
 
 
 def load_dataset(
