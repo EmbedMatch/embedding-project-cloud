@@ -60,6 +60,13 @@ FASTEMBED_MODELS = {
 
 AZURE_MODELS = {"text-embedding-ada-002", "text-embedding-3-large"}
 
+ALL_MODEL_IDS: list[str] = [
+    "text-embedding-ada-002",
+    "text-embedding-3-large",
+    "all-MiniLM-L6-v2",
+    "bge-base-en-v1.5",
+    "bge-small-en-v1.5",
+]
 
 # ── Azure client factories ───────────────────────────────────────────────────
 
@@ -244,7 +251,7 @@ def benchmark_job_listener(msg: func.QueueMessage) -> None:
         judge_scores = score_relevance_llm(client, texts, queries)
 
         # Run benchmark for each registered model
-        ALL_MODELS = list(AZURE_MODELS) + list(FASTEMBED_MODELS.keys())
+        ALL_MODELS = resolve_models(experiment)
         results_array: list[dict[str, Any]] = []
 
         for model_name in ALL_MODELS:
@@ -394,7 +401,7 @@ def score_relevance_llm(
                     "reason": parsed.get("reason", ""),
                 }
             )
-        except (json.JSONDecodeError, ValueError):
+        except json.JSONDecodeError, ValueError:
             logging.warning("Failed to parse LLM judge response: %s", raw)
             scores.append(
                 {
@@ -405,3 +412,20 @@ def score_relevance_llm(
                 }
             )
     return scores
+
+
+def resolve_models(experiment: dict[str, Any]) -> list[str]:
+    """Return the list of models to benchmark for this experiment.
+    - Reads experiment["models"] if present (new experiments)
+    - Falls back to ALL_MODEL_IDS for backward compatibility for older experiments
+    - Validates all entries are known models
+    """
+    selected = experiment.get("models")
+    if not selected:
+        return list(ALL_MODEL_IDS)
+    # Filtering only known models to keep the order of the input list
+    known = set(AZURE_MODELS) | set(FASTEMBED_MODELS.keys())
+    validated = [m for m in ALL_MODEL_IDS if m in selected and m in known]
+    if not validated:
+        raise ValueError(f"No valid models found in experiment: {selected}")
+    return validated

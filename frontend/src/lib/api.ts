@@ -17,6 +17,7 @@ export async function createExperiment(data: {
   blob_name: string;
   dataset_type: string;
   description?: string;
+  models?: string[];
 }): Promise<{ id: string; status: string }> {
   const res = await fetch(`${API_URL}/experiments/`, {
     method: "POST",
@@ -37,6 +38,7 @@ export interface ExperimentResult {
     blob_name: string;
     dataset_type: string;
     created_at: string;
+    models?: string[];
     results:
         | {
               model: string;
