@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Bundle Python packages (fastembed + ONNX Runtime)
+      - name: Bundle Python packages
         run: |
           pip install -q -t fn_pkgs \
             azure-functions \
@@ -32,7 +32,7 @@ jobs:
           cp functions/function_app.py fn-bundle/
           cp functions/host.json fn-bundle/
           cp functions/requirements.txt fn-bundle/
-          cd fn-bundle && zip -r ../function.zip . -x "*.pyc" -x "*/__pycache__/*"
+          cd fn-bundle && zip -r ../function.zip . -x "*.pyc" -x "*/__pycache__/*" -x "*/tests/*" -x "*/test/*" -x "*dist-info/*"
           ls -lh ../function.zip
 
       - name: Deploy via Kudu zip deploy
@@ -50,8 +50,9 @@ jobs:
           "
       - name: Push to Kudu
         run: |
-          curl -sf -X POST \
-            "https://${SCM_HOST}/api/zipdeploy" \
+          curl -sv -X POST \
+            "https://${SCM_HOST}/api/zipdeploy?isAsync=true" \
             -u "${KUDU_CREDS}" \
             --data-binary @function.zip \
-            -H "Content-Type: application/zip"
+            -H "Content-Type: application/zip" \
+            --max-time 300
