@@ -139,8 +139,7 @@ function ScoreBar({
   const pct = Math.min((value / max) * 100, 100);
 
   useEffect(() => {
-    if (!animate) { setWidth(pct); return; }
-    const t = setTimeout(() => setWidth(pct), 100);
+    const t = setTimeout(() => setWidth(pct), animate ? 100 : 0);
     return () => clearTimeout(t);
   }, [pct, animate]);
 
