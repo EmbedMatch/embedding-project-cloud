@@ -362,7 +362,6 @@ def score_retrieval(
     }
 
 
-
 def score_relevance_llm(
     client: AzureOpenAI,
     texts: list[str],
