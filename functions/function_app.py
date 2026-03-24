@@ -276,6 +276,8 @@ def benchmark_job_listener(msg: func.QueueMessage) -> None:
                         "error": "Model benchmark failed",
                     }
                 )
+            # Write partial results after each model so frontend can show progress
+            update_status(container, experiment, "processing", results=results_array)
 
         update_status(container, experiment, "completed", results=results_array)
         logging.info(
