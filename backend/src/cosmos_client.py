@@ -125,3 +125,142 @@ def list_experiments() -> list[dict[str, Any]]:
 def _clean(doc: dict[str, Any]) -> dict[str, Any]:
     """Remove Cosmos DB system properties (e.g. _rid, _self, _ts, …)."""
     return {k: v for k, v in doc.items() if not k.startswith("_")}
+
+
+def get_experiment_progress(experiment_id: str) -> dict[str, Any] | None:
+    """Return experiment status + per-model progress."""
+    doc = get_experiment(experiment_id)
+    if doc is None:
+        return None
+    total_models = doc.get("models", [])
+    completed_results = doc.get("results", []) or []
+    # Build per-model status
+    finished_model_names = set()
+    per_model = []
+    for result in completed_results:
+        model_name = result.get("model", "unknown")
+        finished_model_names.add(model_name)
+        has_error = "error" in result
+        per_model.append(
+            {
+                "model": model_name,
+                "status": "failed" if has_error else "done",
+            }
+        )
+    # Adds pending models (not yet in results)
+    for model_name in total_models:
+        if model_name not in finished_model_names:
+            per_model.append(
+                {
+                    "model": model_name,
+                    "status": "pending",
+                }
+            )
+    completed_count = len(completed_results)
+    total_count = len(total_models) if total_models else 1  # avoids division by zero
+    return {
+        "id": doc["id"],
+        "status": doc["status"],
+        "progress_percent": round((completed_count / total_count) * 100, 1),
+        "completed_models": completed_count,
+        "total_models": total_count,
+        "per_model": per_model,
+        "updated_at": doc.get("updated_at"),
+    }
+
+
+def reset_experiment(experiment_id: str) -> dict[str, Any] | None:
+    """Reset an experiment for re-processing.
+
+    Clears results, resets status to 'created', updates timestamp.
+    Returns the updated document, or None if not found.
+    """
+    container = _get_container()
+    try:
+        doc: dict[str, Any] = container.read_item(
+            item=experiment_id,
+            partition_key=experiment_id,
+        )
+    except CosmosResourceNotFoundError:
+        return None
+
+    doc["status"] = "created"
+    doc["results"] = None
+    doc["updated_at"] = datetime.now(UTC).isoformat()
+    doc.pop("error", None)
+
+    container.upsert_item(body=doc)
+    return _clean(doc)
+
+
+def get_experiment_summary(experiment_id: str) -> dict[str, Any] | None:
+    """Rank benchmarked models and return a recommendation.
+
+    Returns None if experiment not found.
+    Raises ValueError if experiment hasn't completed or has no results.
+    """
+    doc = get_experiment(experiment_id)
+    if doc is None:
+        return None
+
+    if doc["status"] != "completed":
+        raise ValueError(
+            f"Experiment is '{doc['status']}', not 'completed'. Cannot generate summary until benchmark finishes."
+        )
+
+    results = doc.get("results", [])
+    if not results:
+        raise ValueError("No results available for this experiment.")
+
+    # Filter out failed models (those with 'error' key but no scores)
+    valid_results = [r for r in results if "error" not in r]
+
+    if not valid_results:
+        return {
+            "id": doc["id"],
+            "status": doc["status"],
+            "ranked_models": [],
+            "recommendation": None,
+            "message": "All models failed during benchmarking.",
+        }
+
+    # Composite score: 0.5 * relevance + 0.3 * retrieval(×10) + 0.2 * speed(×10)
+    max_latency = max(r.get("latency_ms", 0) for r in valid_results) or 1
+
+    for r in valid_results:
+        relevance = r.get("relevance_score", 0)
+        retrieval = r.get("retrieval_accuracy", 0)
+        latency = r.get("latency_ms", 0)
+        normalized_latency = latency / max_latency
+
+        r["composite_score"] = round(
+            0.5 * relevance + 0.3 * (retrieval * 10) + 0.2 * ((1 - normalized_latency) * 10),
+            2,
+        )
+
+    ranked = sorted(valid_results, key=lambda r: r["composite_score"], reverse=True)
+
+    for i, r in enumerate(ranked, start=1):
+        r["rank"] = i
+
+    best = ranked[0]
+
+    return {
+        "id": doc["id"],
+        "status": doc["status"],
+        "ranked_models": ranked,
+        "recommendation": {
+            "model": best["model"],
+            "composite_score": best["composite_score"],
+            "relevance_score": best.get("relevance_score"),
+            "retrieval_accuracy": best.get("retrieval_accuracy"),
+            "latency_ms": best.get("latency_ms"),
+            "reason": (
+                f"{best['model']} achieved the highest composite score of "
+                f"{best['composite_score']}/10, balancing relevance "
+                f"({best.get('relevance_score', 'N/A')}), retrieval accuracy "
+                f"({best.get('retrieval_accuracy', 'N/A')}), and latency "
+                f"({best.get('latency_ms', 'N/A')}ms)."
+            ),
+        },
+    }
