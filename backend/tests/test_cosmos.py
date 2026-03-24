@@ -185,3 +185,102 @@ def test_list_experiments_endpoint(mock_list: MagicMock) -> None:
     data = response.json()
     assert len(data) == 2
     assert data[0]["id"] == "a"
+
+
+# ── Model selection validation ────────────────────────────────────────────────
+
+
+@pytest.mark.unit
+@patch("src.routers.experiments.enqueue_benchmark_job")
+@patch("src.routers.experiments.create_experiment")
+def test_post_experiment_with_models(mock_create: MagicMock, mock_enqueue: MagicMock) -> None:
+    """POST /experiments/ with explicit models stores them."""
+    mock_create.return_value = {
+        "id": "exp-m1",
+        "name": "Test",
+        "blob_name": "uploads/f.csv",
+        "description": "",
+        "dataset_type": "csv",
+        "status": "created",
+        "models": ["text-embedding-3-large", "bge-small-en-v1.5"],
+        "created_at": "2025-01-01T00:00:00+00:00",
+        "updated_at": "2025-01-01T00:00:00+00:00",
+        "results": None,
+    }
+
+    response = client.post(
+        "/experiments/",
+        json={
+            "name": "Test",
+            "blob_name": "uploads/f.csv",
+            "models": ["text-embedding-3-large", "bge-small-en-v1.5"],
+        },
+    )
+    assert response.status_code == 201
+    assert response.json()["models"] == ["text-embedding-3-large", "bge-small-en-v1.5"]
+
+
+@pytest.mark.unit
+@patch("src.routers.experiments.enqueue_benchmark_job")
+@patch("src.routers.experiments.create_experiment")
+def test_post_experiment_default_models(mock_create: MagicMock, mock_enqueue: MagicMock) -> None:
+    """POST /experiments/ without models stores the full default list."""
+    mock_create.return_value = {
+        "id": "exp-d",
+        "name": "Test",
+        "blob_name": "uploads/f.csv",
+        "description": "",
+        "dataset_type": "csv",
+        "status": "created",
+        "models": [
+            "text-embedding-ada-002",
+            "text-embedding-3-large",
+            "all-MiniLM-L6-v2",
+            "bge-base-en-v1.5",
+            "bge-small-en-v1.5",
+        ],
+        "created_at": "2025-01-01T00:00:00+00:00",
+        "updated_at": "2025-01-01T00:00:00+00:00",
+        "results": None,
+    }
+
+    response = client.post(
+        "/experiments/",
+        json={"name": "Test", "blob_name": "uploads/f.csv"},
+    )
+    assert response.status_code == 201
+    assert len(response.json()["models"]) == 5
+
+
+@pytest.mark.unit
+def test_post_experiment_invalid_model() -> None:
+    """POST /experiments/ with an unknown model should return 422."""
+    response = client.post(
+        "/experiments/",
+        json={"name": "Test", "blob_name": "uploads/f.csv", "models": ["nonexistent-model"]},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.unit
+def test_post_experiment_duplicate_model() -> None:
+    """POST /experiments/ with duplicate models should return 422."""
+    response = client.post(
+        "/experiments/",
+        json={
+            "name": "Test",
+            "blob_name": "uploads/f.csv",
+            "models": ["text-embedding-ada-002", "text-embedding-ada-002"],
+        },
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.unit
+def test_post_experiment_empty_models() -> None:
+    """POST /experiments/ with an empty models list should return 422."""
+    response = client.post(
+        "/experiments/",
+        json={"name": "Test", "blob_name": "uploads/f.csv", "models": []},
+    )
+    assert response.status_code == 422

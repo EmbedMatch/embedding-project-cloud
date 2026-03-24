@@ -6,13 +6,20 @@ from uuid import uuid4
 
 from azure.cosmos import ContainerProxy, CosmosClient
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from src.config import settings
 
 # ──────────────────────────────────────────────
 #  Pydantic models
 # ──────────────────────────────────────────────
+SUPPORTED_MODELS: list[str] = [
+    "text-embedding-ada-002",
+    "text-embedding-3-large",
+    "all-MiniLM-L6-v2",
+    "bge-base-en-v1.5",
+    "bge-small-en-v1.5",
+]
 
 
 class ExperimentBase(BaseModel):
@@ -27,6 +34,20 @@ class ExperimentBase(BaseModel):
 class ExperimentCreate(ExperimentBase):
     """Payload for creating a new experiment (inherits shared fields)."""
 
+    models: list[str] = Field(default_factory=lambda: list(SUPPORTED_MODELS))
+
+    @field_validator("models")
+    @classmethod
+    def validate_models(cls, v: list[str]) -> list[str]:
+        if not v:
+            raise ValueError("Models list must not be empty")
+        if len(v) != len(set(v)):
+            raise ValueError("Models list must not contain duplicates")
+        invalid = set(v) - set(SUPPORTED_MODELS)
+        if invalid:
+            raise ValueError(f"unsupported model(s): {', '.join(sorted(invalid))}")
+        return [m for m in SUPPORTED_MODELS if m in v]
+
 
 class Experiment(ExperimentBase):
     """Full experiment document as stored in Cosmos DB."""
@@ -36,6 +57,7 @@ class Experiment(ExperimentBase):
     created_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(UTC).isoformat())
     results: list[dict[str, Any]] | dict[str, Any] | None = None
+    models: list[str] = Field(default_factory=lambda: list(SUPPORTED_MODELS))
 
 
 # ──────────────────────────────────────────────

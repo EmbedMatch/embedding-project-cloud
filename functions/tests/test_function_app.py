@@ -4,7 +4,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from function_app import Config, extract_texts, parse_dataset, run_benchmark
+from function_app import (
+    Config,
+    extract_texts,
+    parse_dataset,
+    run_benchmark,
+    resolve_models,
+    ALL_MODEL_IDS,
+)
 
 
 # ── parse_dataset ────────────────────────────────────────────────────────────
@@ -129,3 +136,39 @@ def test_run_benchmark_batching():
     result = embed_batch(mock_client, ["a", "b", "c"], batch_size=2)
     assert result.shape == (3, 2)
     assert mock_client.embeddings.create.call_count == 2
+
+
+# ── resolve_models ───────────────────────────────────────────────────────────
+
+
+@pytest.mark.unit
+def test_resolve_models_with_subset():
+    """When experiment has a models field, return that subset."""
+    experiment = {"models": ["bge-small-en-v1.5", "text-embedding-ada-002"]}
+    result = resolve_models(experiment)
+    # Should be reordered to match canonical order
+    assert result == ["text-embedding-ada-002", "bge-small-en-v1.5"]
+
+
+@pytest.mark.unit
+def test_resolve_models_without_field():
+    """When experiment has no models field, fall back to all models."""
+    experiment = {"name": "old-experiment"}
+    result = resolve_models(experiment)
+    assert result == ALL_MODEL_IDS
+
+
+@pytest.mark.unit
+def test_resolve_models_empty_list():
+    """When experiment has an empty models list, fall back to all models."""
+    experiment = {"models": []}
+    result = resolve_models(experiment)
+    assert result == ALL_MODEL_IDS
+
+
+@pytest.mark.unit
+def test_resolve_models_invalid_raises():
+    """When ALL entries are unknown models, should raise ValueError."""
+    experiment = {"models": ["nonexistent-model"]}
+    with pytest.raises(ValueError, match="No valid models"):
+        resolve_models(experiment)
