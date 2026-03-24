@@ -7,7 +7,8 @@ export async function uploadFile(file: File): Promise<{ blob_name: string; url: 
   const res = await fetch(`${API_URL}/uploads/`, { method: "POST", body: formData });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Upload failed");
+    const detail = typeof err.detail === "string" ? err.detail : err.detail?.detail || JSON.stringify(err.detail);
+    throw new Error(detail || "Upload failed");
   }
   return res.json();
 }
@@ -26,7 +27,8 @@ export async function createExperiment(data: {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Failed to create experiment");
+    const detail = typeof err.detail === "string" ? err.detail : err.detail?.detail || JSON.stringify(err.detail);
+    throw new Error(detail || "Failed to create experiment");
   }
   return res.json();
 }

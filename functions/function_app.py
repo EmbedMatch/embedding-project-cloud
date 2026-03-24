@@ -276,6 +276,8 @@ def benchmark_job_listener(msg: func.QueueMessage) -> None:
                         "error": "Model benchmark failed",
                     }
                 )
+            # Write partial results after each model so frontend can show progress
+            update_status(container, experiment, "processing", results=results_array)
 
         update_status(container, experiment, "completed", results=results_array)
         logging.info(
@@ -296,27 +298,24 @@ def benchmark_job_listener(msg: func.QueueMessage) -> None:
 
 
 def generate_queries(client: AzureOpenAI, texts: list[str]) -> list[str]:
-    """Generate a synthetic search open query for each text using GPT."""
+    """Generate synthetic search queries for all texts."""
     queries: list[str] = []
     for text in texts:
-        # we call the chat completion API
         response = client.chat.completions.create(
             model=CFG.chat_model,
             messages=[
                 {
                     "role": "system",
                     "content": (
-                        "You are a helpful search assistant. Give a document, write a single realistic search query that a user might, type into a search engine to find it. Output ONLY the query text."
+                        "You are a helpful search assistant. Given a document, write a single realistic search query that a user might type into a search engine to find it. Output ONLY the query text."
                     ),
                 },
                 {"role": "user", "content": f"Document: \n{text}"},
             ],
-            temperature=0.2,  # Low temperature so it doesn't get too creative/hallucinate
+            temperature=0.2,
             max_tokens=60,
         )
-        query = response.choices[0].message.content.strip("\"'-")
-        queries.append(query)
-
+        queries.append(response.choices[0].message.content.strip("\"'-"))
     return queries
 
 
@@ -382,7 +381,7 @@ def score_relevance_llm(
                 },
                 {
                     "role": "user",
-                    "content": f"Query: {query}\nnDocument: {text}",
+                    "content": f"Query: {query}\nDocument: {text}",
                 },
             ],
             temperature=0,
