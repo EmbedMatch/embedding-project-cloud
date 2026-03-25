@@ -463,8 +463,8 @@ const Results = () => {
             <h1 className="text-4xl font-bold">Benchmark Results</h1>
           </div>
           <p className="text-xl text-muted-foreground">
-            {experiment.name} &mdash;{" "}
-            <span className="text-sm font-mono">{experimentId}</span>
+            Dataset: {experiment.name} {/* &mdash;{" "}
+            <span className="text-sm font-mono">{experimentId}</span> */}
           </p>
         </div>
 

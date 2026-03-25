@@ -12,7 +12,6 @@ import {
     PlayCircle,
     Loader2,
     Upload,
-    AlertCircle,
     FileText,
     Trash2,
 } from "lucide-react";
@@ -406,52 +405,23 @@ const Leaderboard = () => {
                                     selected
                                 </span>
                             </div>
-                            {hasDataset ? (
-                                <Button
-                                    variant="hero"
-                                    onClick={handleStartBenchmark}
-                                    disabled={isStarting}
-                                >
-                                    {isStarting ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
-                                            Starting...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <PlayCircle className="w-4 h-4 mr-2" />{" "}
-                                            Start Benchmarking
-                                        </>
-                                    )}
-                                </Button>
-                            ) : (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <AlertCircle className="w-4 h-4" />
-                                    <span>
-                                        Upload a dataset to start benchmarking
-                                    </span>
-                                    <Button
-                                        variant="hero"
-                                        size="sm"
-                                        onClick={() =>
-                                            fileInputRef.current?.click()
-                                        }
-                                        disabled={isUploading}
-                                    >
-                                        {isUploading ? (
-                                            <>
-                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
-                                                Uploading...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Upload className="w-4 h-4 mr-2" />{" "}
-                                                Upload
-                                            </>
-                                        )}
-                                    </Button>
-                                </div>
-                            )}
+                            <Button
+                                variant="hero"
+                                onClick={handleStartBenchmark}
+                                disabled={isStarting || !hasDataset}
+                            >
+                                {isStarting ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
+                                        Starting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <PlayCircle className="w-4 h-4 mr-2" />{" "}
+                                        Start Benchmarking
+                                    </>
+                                )}
+                            </Button>
                         </div>
                     </Card>
                 )}
@@ -555,7 +525,7 @@ const Leaderboard = () => {
                 </div>
 
                 {/* Bottom Actions */}
-                <div className="flex justify-between mt-8">
+                <div className="flex justify-start mt-8">
                     <Button
                         variant="outline"
                         size="lg"
@@ -570,42 +540,6 @@ const Leaderboard = () => {
                     >
                         Filter by Constraints
                     </Button>
-                    {hasDataset ? (
-                        <Button
-                            variant="hero"
-                            size="lg"
-                            disabled={selectedModels.length === 0 || isStarting}
-                            onClick={handleStartBenchmark}
-                        >
-                            {isStarting ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
-                                    Starting...
-                                </>
-                            ) : (
-                                `Benchmark Selected (${selectedModels.length})`
-                            )}
-                        </Button>
-                    ) : (
-                        <Button
-                            variant="hero"
-                            size="lg"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isUploading}
-                        >
-                            {isUploading ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />{" "}
-                                    Uploading...
-                                </>
-                            ) : (
-                                <>
-                                    <Upload className="w-4 h-4 mr-2" /> Upload
-                                    Dataset to Benchmark
-                                </>
-                            )}
-                        </Button>
-                    )}
                 </div>
             </div>
         </div>
