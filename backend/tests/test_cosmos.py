@@ -420,7 +420,7 @@ def test_reset_experiment_success(mock_get_container: MagicMock) -> None:
     assert result["status"] == "created"
     assert result["results"] is None
     assert "error" not in result
-    mock_container.upsert_item.assert_called_once()
+    mock_container.replace_item.assert_called_once()
 
 
 @pytest.mark.unit

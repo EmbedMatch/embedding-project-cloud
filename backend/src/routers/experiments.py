@@ -64,6 +64,8 @@ async def get_experiment_summary_endpoint(experiment_id: str) -> dict[str, Any]:
     return result
 
 
+# Keep this catch-all BELOW sub-routes (/progress, /summary, /retrigger)
+# so FastAPI doesn't match e.g. "progress" as an experiment_id.
 @router.get("/{experiment_id}")
 async def get_experiment_endpoint(experiment_id: str) -> dict[str, Any]:
     """Get a single experiment by ID."""

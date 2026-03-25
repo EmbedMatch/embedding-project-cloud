@@ -132,7 +132,7 @@ def get_experiment_progress(experiment_id: str) -> dict[str, Any] | None:
     doc = get_experiment(experiment_id)
     if doc is None:
         return None
-    total_models = doc.get("models", [])
+    model_names = doc.get("models", [])
     completed_results = doc.get("results", []) or []
     # Build per-model status
     finished_model_names = set()
@@ -148,7 +148,7 @@ def get_experiment_progress(experiment_id: str) -> dict[str, Any] | None:
             }
         )
     # Adds pending models (not yet in results)
-    for model_name in total_models:
+    for model_name in model_names:
         if model_name not in finished_model_names:
             per_model.append(
                 {
@@ -157,11 +157,11 @@ def get_experiment_progress(experiment_id: str) -> dict[str, Any] | None:
                 }
             )
     completed_count = len(completed_results)
-    total_count = len(total_models) if total_models else 1  # avoids division by zero
+    total_count = len(model_names) if model_names else 1  # avoids division by zero
     return {
         "id": doc["id"],
         "status": doc["status"],
-        "progress_percent": round((completed_count / total_count) * 100, 1),
+        "progress_percent": min(round((completed_count / total_count) * 100, 1), 100.0),
         "completed_models": completed_count,
         "total_models": total_count,
         "per_model": per_model,
@@ -189,7 +189,7 @@ def reset_experiment(experiment_id: str) -> dict[str, Any] | None:
     doc["updated_at"] = datetime.now(UTC).isoformat()
     doc.pop("error", None)
 
-    container.upsert_item(body=doc)
+    container.replace_item(item=experiment_id, body=doc)
     return _clean(doc)
 
 
@@ -225,20 +225,28 @@ def get_experiment_summary(experiment_id: str) -> dict[str, Any] | None:
         }
 
     # Composite score: 0.5 * relevance + 0.3 * retrieval(×10) + 0.2 * speed(×10)
+    # Note: with a single model, speed score is always 0 (normalized to itself).
+    # This is acceptable — relative speed ranking only meaningful with ≥2 models.
     max_latency = max(r.get("latency_ms", 0) for r in valid_results) or 1
 
+    scored = []
     for r in valid_results:
         relevance = r.get("relevance_score", 0)
         retrieval = r.get("retrieval_accuracy", 0)
         latency = r.get("latency_ms", 0)
         normalized_latency = latency / max_latency
 
-        r["composite_score"] = round(
-            0.5 * relevance + 0.3 * (retrieval * 10) + 0.2 * ((1 - normalized_latency) * 10),
-            2,
+        scored.append(
+            {
+                **r,
+                "composite_score": round(
+                    0.5 * relevance + 0.3 * (retrieval * 10) + 0.2 * ((1 - normalized_latency) * 10),
+                    2,
+                ),
+            }
         )
 
-    ranked = sorted(valid_results, key=lambda r: r["composite_score"], reverse=True)
+    ranked = sorted(scored, key=lambda r: r["composite_score"], reverse=True)
 
     for i, r in enumerate(ranked, start=1):
         r["rank"] = i

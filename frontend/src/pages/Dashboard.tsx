@@ -98,14 +98,19 @@ const Dashboard = () => {
     };
   }, []);
 
+  // ── Helpers ──
+  // Old experiments stored results as a single dict; normalise to array.
+  const toArray = (r: ExperimentResult["results"]) =>
+    Array.isArray(r) ? r : r ? [r] : [];
+
   // ── Computed stats ──
   const completed = experiments.filter((e) => e.status === "completed");
   const allModels = new Set(
-    completed.flatMap((e) => (e.results ?? []).map((r) => r.model)),
+    completed.flatMap((e) => toArray(e.results).map((r) => r.model)),
   );
   const allAccuracies = completed.flatMap((e) =>
-    (e.results ?? [])
-      .filter((r) => !r.error)
+    toArray(e.results)
+      .filter((r) => !r.error && r.retrieval_accuracy != null)
       .map((r) => r.retrieval_accuracy * 100),
   );
   const avgScore =
@@ -225,7 +230,7 @@ const Dashboard = () => {
           {!loading && !error && (
             <div className="space-y-4">
               {sorted.map((exp) => {
-                const validResults = (exp.results ?? []).filter((r) => !r.error);
+                const validResults = toArray(exp.results).filter((r) => !r.error && r.retrieval_accuracy != null);
                 const best =
                   validResults.length > 0
                     ? validResults.reduce((a, b) =>
