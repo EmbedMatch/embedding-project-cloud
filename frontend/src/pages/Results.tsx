@@ -16,31 +16,31 @@ import {
   ChevronUp,
   CheckCircle2,
 } from "lucide-react";
-import { type ExperimentResult, getExperiment } from "@/lib/api";
+import { type ExperimentResult, type ExperimentProgress, getExperiment, getExperimentProgress } from "@/lib/api";
 
 type ModelResult = NonNullable<ExperimentResult["results"]>[number];
 
-// ─── Animated progress bar stages ────────────────────────────────────────────
-const STAGES = [
-  { label: "Uploading dataset", pct: 10 },
-  { label: "Initialising models", pct: 25 },
-  { label: "Generating embeddings", pct: 55 },
-  { label: "Running evaluations", pct: 80 },
-  { label: "Scoring results", pct: 95 },
-];
+// ─── Data-driven progress component ─────────────────────────────────────────
+interface BenchmarkProgressProps {
+  status: string;
+  progress: ExperimentProgress | null;
+}
 
-function BenchmarkProgress({ status }: { status: string }) {
-  const [stageIdx, setStageIdx] = useState(0);
+function BenchmarkProgress({ status, progress }: BenchmarkProgressProps) {
   const [displayPct, setDisplayPct] = useState(0);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setStageIdx((prev) => (prev < STAGES.length - 1 ? prev + 1 : prev));
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
+  const completedModels = progress?.completed_models ?? 0;
+  const totalModels = progress?.total_models ?? 5;
+  const isIndeterminate = status === "created" || status === "loading" ||
+    (status === "processing" && completedModels === 0);
 
-  const targetPct = STAGES[stageIdx].pct;
+  // Compute real progress percentage
+  const targetPct = status === "completed" ? 100
+    : status === "created" || status === "loading" ? 5
+    : completedModels === 0 ? 10
+    : Math.round(15 + (completedModels / totalModels) * 80);
+
+  // Smooth animation toward target
   useEffect(() => {
     const t = setTimeout(() => {
       setDisplayPct((prev) => {
@@ -51,13 +51,54 @@ function BenchmarkProgress({ status }: { status: string }) {
     return () => clearTimeout(t);
   }, [displayPct, targetPct]);
 
+  // Build dynamic stage list
+  const stages: { label: string; state: "done" | "active" | "pending" }[] = [];
+
+  // Stage 1: Queued
+  const queuedDone = status !== "created" && status !== "loading";
+  stages.push({
+    label: "Queued",
+    state: queuedDone ? "done" : status === "created" ? "active" : "pending",
+  });
+
+  // Stage 2: LLM prep
+  const prepDone = completedModels > 0;
+  stages.push({
+    label: "Preparing evaluation data",
+    state: prepDone ? "done" : queuedDone ? "active" : "pending",
+  });
+
+  // Stage 3+: Per-model
+  const perModel = progress?.per_model ?? [];
+  let foundActive = false;
+  for (const m of perModel) {
+    const isDone = m.status === "done" || m.status === "failed";
+    const isNext = !isDone && prepDone && !foundActive;
+    if (isNext) foundActive = true;
+    stages.push({
+      label: m.model,
+      state: isDone ? "done" : isNext ? "active" : "pending",
+    });
+  }
+
+  // If no per_model data yet, show a placeholder
+  if (perModel.length === 0 && queuedDone) {
+    stages.push({ label: `Benchmarking ${totalModels} models`, state: "pending" });
+  }
+
+  // Subtitle text
+  const subtitle = status === "loading" ? "Loading experiment..."
+    : status === "created" ? "Queued — waiting for worker..."
+    : completedModels === 0 ? "Preparing evaluation data — this may take a minute."
+    : `Benchmarking models — ${completedModels} of ${totalModels} complete.`;
+
   return (
     <div className="min-h-screen bg-gradient-hero pt-20 pb-12">
       <div className="max-w-2xl mx-auto px-6">
         <Card className="p-10 shadow-elevation text-center">
           {/* Animated ring */}
           <div className="relative mx-auto mb-8 w-28 h-28">
-            <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+            <svg viewBox="0 0 100 100" className={`w-full h-full -rotate-90 ${isIndeterminate ? "animate-pulse" : ""}`}>
               <circle
                 cx="50" cy="50" r="42"
                 fill="none"
@@ -81,24 +122,22 @@ function BenchmarkProgress({ status }: { status: string }) {
           </div>
 
           <h2 className="text-2xl font-bold mb-2">Benchmarking in Progress</h2>
-          <p className="text-muted-foreground mb-8">
-            Embedding your data with multiple models. This may take a moment.
-          </p>
+          <p className="text-muted-foreground mb-8">{subtitle}</p>
 
           {/* Stage list */}
           <div className="space-y-3 text-left">
-            {STAGES.map((s, i) => (
+            {stages.map((s, i) => (
               <div key={i} className="flex items-center gap-3">
-                {i < stageIdx ? (
+                {s.state === "done" ? (
                   <CheckCircle2 className="w-5 h-5 text-accent shrink-0" />
-                ) : i === stageIdx ? (
+                ) : s.state === "active" ? (
                   <Loader2 className="w-5 h-5 text-primary animate-spin shrink-0" />
                 ) : (
                   <div className="w-5 h-5 rounded-full border-2 border-border shrink-0" />
                 )}
                 <span
                   className={`text-sm ${
-                    i <= stageIdx ? "text-foreground font-medium" : "text-muted-foreground"
+                    s.state !== "pending" ? "text-foreground font-medium" : "text-muted-foreground"
                   }`}
                 >
                   {s.label}
@@ -324,10 +363,10 @@ const Results = () => {
   const experimentId = searchParams.get("id");
 
   const [experiment, setExperiment] = useState<ExperimentResult | null>(null);
+  const [progress, setProgress] = useState<ExperimentProgress | null>(null);
   const [error, setError] = useState<string | null>(
     experimentId ? null : "No experiment ID provided",
   );
-  const [polling, setPolling] = useState(!!experimentId);
 
   useEffect(() => {
     if (!experimentId) return;
@@ -335,16 +374,16 @@ const Results = () => {
 
     const poll = async () => {
       try {
-        const data = await getExperiment(experimentId);
+        const [data, prog] = await Promise.all([
+          getExperiment(experimentId),
+          getExperimentProgress(experimentId),
+        ]);
         if (!active) return;
         setExperiment(data);
-        if (data.status === "completed" || data.status === "failed") {
-          setPolling(false);
-        }
+        setProgress(prog);
       } catch (err) {
         if (!active) return;
         setError(err instanceof Error ? err.message : "Failed to load experiment");
-        setPolling(false);
       }
     };
 
@@ -369,19 +408,13 @@ const Results = () => {
     );
   }
 
-  // ── Loading / processing state ──
-  if (!experiment || (polling && experiment.status === "processing")) {
+  // ── Loading / queued / processing → show progress UI ──
+  if (!experiment || experiment.status === "created" || experiment.status === "processing") {
     return (
-      <BenchmarkProgress status={experiment?.status ?? "loading"} />
-    );
-  }
-
-  // ── Initially loading (no status yet) ──
-  if (!experiment) {
-    return (
-      <div className="min-h-screen bg-gradient-hero pt-20 pb-12 flex items-center justify-center">
-        <Loader2 className="w-12 h-12 text-primary animate-spin" />
-      </div>
+      <BenchmarkProgress
+        status={experiment?.status ?? "loading"}
+        progress={progress}
+      />
     );
   }
 

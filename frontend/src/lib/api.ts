@@ -69,6 +69,22 @@ export async function getExperiment(id: string): Promise<ExperimentResult> {
   return res.json();
 }
 
+export interface ExperimentProgress {
+  id: string;
+  status: string;
+  progress_percent: number;
+  completed_models: number;
+  total_models: number;
+  per_model: { model: string; status: string }[];
+  updated_at: string;
+}
+
+export async function getExperimentProgress(id: string): Promise<ExperimentProgress> {
+  const res = await fetch(`${API_URL}/experiments/${id}/progress`);
+  if (!res.ok) throw new Error("Failed to get progress");
+  return res.json();
+}
+
 export async function listExperiments(): Promise<ExperimentResult[]> {
   const res = await fetch(`${API_URL}/experiments/`);
   if (!res.ok) throw new Error("Failed to list experiments");
