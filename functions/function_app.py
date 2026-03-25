@@ -12,6 +12,7 @@ import io
 import json
 import logging
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -59,6 +60,25 @@ FASTEMBED_MODELS = {
 }
 
 AZURE_MODELS = {"text-embedding-ada-002", "text-embedding-3-large"}
+
+QUERY_GENERATION_PROMPT = """\
+You are a search query generator for benchmarking embedding models.
+Given a document, write a search query that someone would type if they
+needed this information but had NEVER seen the document.
+CRITICAL RULES:
+1) Do NOT reuse any nouns, verbs, or phrases from the document — use
+   synonyms, related concepts, or describe the problem from the user's
+   perspective.
+2) The query should be answerable by this document but use completely
+   different vocabulary.
+3) Think about what real-world problem the user is trying to solve.
+Output ONLY the query text, nothing else."""
+
+JUDGE_SCORING_PROMPT = """\
+You are a relevance judge. Given a search query and a document, rate how
+relevant the document is to the query on a scale of 0 (completely
+irrelevant) to 10 (perfectly relevant). Respond with JSON only:
+{"score": <int>, "reason": "<brief reason>"}"""
 
 ALL_MODEL_IDS: list[str] = [
     "text-embedding-ada-002",
@@ -297,26 +317,34 @@ def benchmark_job_listener(msg: func.QueueMessage) -> None:
 # ── LLM Helpers ────────────────────────────────────────────────────────────
 
 
+def _generate_single_query(client: AzureOpenAI, text: str) -> str:
+    response = client.chat.completions.create(
+        model=CFG.chat_model,
+        messages=[
+            {
+                "role": "system",
+                "content": QUERY_GENERATION_PROMPT,
+            },
+            {"role": "user", "content": f"Document: \n{text}"},
+        ],
+        temperature=0.2,
+        max_tokens=60,
+    )
+    content = response.choices[0].message.content
+    return content.strip("\"'-") if content else f"search query for: {text[:50]}"
+
+
 def generate_queries(client: AzureOpenAI, texts: list[str]) -> list[str]:
-    """Generate synthetic search queries for all texts."""
-    queries: list[str] = []
-    for text in texts:
-        response = client.chat.completions.create(
-            model=CFG.chat_model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a helpful search assistant. Given a document, write a single realistic search query that a user might type into a search engine to find it. Output ONLY the query text."
-                    ),
-                },
-                {"role": "user", "content": f"Document: \n{text}"},
-            ],
-            temperature=0.2,
-            max_tokens=60,
-        )
-        queries.append(response.choices[0].message.content.strip("\"'-"))
-    return queries
+    """Generate synthetic search queries for all texts (10 concurrent)."""
+    queries: list[str | None] = [None] * len(texts)
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {
+            pool.submit(_generate_single_query, client, t): i
+            for i, t in enumerate(texts)
+        }
+        for future in as_completed(futures):
+            queries[futures[future]] = future.result()
+    return [q or "" for q in queries]
 
 
 def score_retrieval(
@@ -362,55 +390,61 @@ def score_retrieval(
     }
 
 
+def _score_single_pair(client: AzureOpenAI, query: str, text: str) -> dict[str, Any]:
+    response = client.chat.completions.create(
+        model=CFG.chat_model,
+        messages=[
+            {
+                "role": "system",
+                "content": JUDGE_SCORING_PROMPT,
+            },
+            {
+                "role": "user",
+                "content": f"Query: {query}\nDocument: {text}",
+            },
+        ],
+        temperature=0,
+        seed=42,
+        response_format={"type": "json_object"},
+        max_tokens=100,
+    )
+    raw = (response.choices[0].message.content or "").strip()
+    try:
+        parsed = json.loads(raw)
+        return {
+            "query": query,
+            "document_preview": text[:100],
+            "score": int(parsed.get("score", 0)),
+            "reason": parsed.get("reason", ""),
+        }
+    except (json.JSONDecodeError, ValueError):
+        logging.warning("Failed to parse LLM judge response: %s", raw)
+        return {
+            "query": query,
+            "document_preview": text[:100],
+            "score": 0,
+            "reason": "parse_error",
+        }
+
+
 def score_relevance_llm(
     client: AzureOpenAI,
     texts: list[str],
     queries: list[str],
 ) -> list[dict[str, Any]]:
-    """Use LLM-as-judge to score each (query, document) pair on 0 to 10 scale."""
-    scores: list[dict[str, Any]] = []
-    for query, text in zip(queries, texts):
-        response = client.chat.completions.create(
-            model=CFG.chat_model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        'You are a relevance judge. Given a search query and a document, rate how relevant the document is to the query on a scale of 0 (completely irrelevant) to 10 (perfectly relevant). Respond with JSON only: {"score": <int>, "reason": "<brief reason>"}'
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": f"Query: {query}\nDocument: {text}",
-                },
-            ],
-            temperature=0,
-            seed=42,
-            response_format={"type": "json_object"},
-            max_tokens=100,
-        )
-        raw = response.choices[0].message.content.strip()
-        try:
-            parsed = json.loads(raw)
-            scores.append(
-                {
-                    "query": query,
-                    "document_preview": text[:100],
-                    "score": int(parsed.get("score", 0)),
-                    "reason": parsed.get("reason", ""),
-                }
-            )
-        except (json.JSONDecodeError, ValueError):
-            logging.warning("Failed to parse LLM judge response: %s", raw)
-            scores.append(
-                {
-                    "query": query,
-                    "document_preview": text[:100],
-                    "score": 0,
-                    "reason": "parse_error",
-                }
-            )
-    return scores
+    """Use LLM-as-judge to score all (query, document) pairs (10 concurrent)."""
+    scores: list[dict[str, Any] | None] = [None] * len(texts)
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        futures = {
+            pool.submit(_score_single_pair, client, q, t): i
+            for i, (q, t) in enumerate(zip(queries, texts))
+        }
+        for future in as_completed(futures):
+            scores[futures[future]] = future.result()
+    return [
+        s or {"query": "", "document_preview": "", "score": 0, "reason": "error"}
+        for s in scores
+    ]
 
 
 def resolve_models(experiment: dict[str, Any]) -> list[str]:

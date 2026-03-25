@@ -125,17 +125,26 @@ const Upload = () => {
           <h2 className="text-2xl font-semibold mb-4">Try a Sample Dataset</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {SAMPLE_DATASETS.map((sample) => (
-              <button
-                key={sample.file}
-                onClick={() => handleUseSample(sample.file)}
-                className="p-4 border-2 border-border rounded-lg hover:border-primary transition-colors text-left"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <Download className="w-4 h-4 text-primary" />
-                  <span className="font-semibold">{sample.name}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">{sample.description}</p>
-              </button>
+              <div key={sample.file} className="p-4 border-2 border-border rounded-lg hover:border-primary transition-colors">
+                <button
+                  onClick={() => handleUseSample(sample.file)}
+                  className="w-full text-left"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-4 h-4 text-primary" />
+                    <span className="font-semibold">{sample.name}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{sample.description}</p>
+                </button>
+                <a
+                  href={`/samples/${sample.file}`}
+                  download={sample.file}
+                  className="inline-flex items-center gap-1 mt-2 text-xs text-muted-foreground hover:text-primary transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Download className="w-3 h-3" /> Download CSV
+                </a>
+              </div>
             ))}
           </div>
         </Card>
