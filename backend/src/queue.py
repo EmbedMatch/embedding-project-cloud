@@ -24,10 +24,8 @@ def enqueue_benchmark_job(queue_service: QueueServiceClient, experiment_id: str)
     Creates a QueueClient directly with TextBase64EncodePolicy because the
     Azure Functions queue trigger expects base64-encoded message bodies.
     """
-    queue_client = queue_service.get_queue_client(
-        QUEUE_NAME,
-        message_encode_policy=TextBase64EncodePolicy(),
-    )
+    queue_client = queue_service.get_queue_client(QUEUE_NAME)
+    queue_client._message_encode_policy = TextBase64EncodePolicy()
     with contextlib.suppress(ResourceExistsError):
         queue_client.create_queue()
     queue_client.send_message(experiment_id)
