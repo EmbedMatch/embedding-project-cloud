@@ -14,6 +14,7 @@ services:
     restart: unless-stopped
 
   functions:
+    platform: linux/amd64
     build:
       context: ../functions
       dockerfile: ../infra/Dockerfile.functions
