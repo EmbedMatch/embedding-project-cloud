@@ -380,9 +380,13 @@ const Results = () => {
     if (!experimentId) return;
     let active = true;
     let hasFetchedSummary = false;
-    setSummary(null);
+    let isFirstRun = true;
 
     const poll = async () => {
+      if (isFirstRun) {
+        setSummary(null);
+        isFirstRun = false;
+      }
       try {
         const [data, prog] = await Promise.all([
           getExperiment(experimentId),
