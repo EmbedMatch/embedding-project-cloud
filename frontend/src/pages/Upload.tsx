@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Upload as UploadIcon, FileText, CheckCircle2, AlertCircle, Loader2, Download } from "lucide-react";
-import { Checkbox} from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { uploadFile, createExperiment } from "@/lib/api";
+import { uploadFile } from "@/lib/api";
 
 const SAMPLE_DATASETS = [
   { name: "Tech Articles", file: "tech-articles.csv", description: "100 science & technology articles (AG News)" },
@@ -14,35 +13,12 @@ const SAMPLE_DATASETS = [
   { name: "News Headlines", file: "news-headlines.csv", description: "100 world/sports/business headlines (AG News)" },
 ];
 
-const AVAILABLE_MODELS = [
-  { id: "text-embedding-ada-002", label: "Ada 002", provider: "Azure OpenAI" },
-  { id: "text-embedding-3-large", label: "Embedding 3 Large", provider: "Azure OpenAI" },
-  { id: "all-MiniLM-L6-v2", label: "MiniLM L6 v2", provider: "Open Source" },
-  { id: "bge-base-en-v1.5", label: "BGE Base v1.5", provider: "Open Source" },
-  { id: "bge-small-en-v1.5", label: "BGE Small v1.5", provider: "Open Source" },
-];
-
-
 const Upload = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedModels, setSelectedModels] = useState<string[]>(
-    AVAILABLE_MODELS.map((m) => m.id)
-  );
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  const toggleModel = (modelId: string) => {
-    setSelectedModels((prev) =>
-      prev.includes(modelId)
-        ? prev.filter((id) => id !== modelId)
-        : [...prev, modelId]
-    );
-  };
-
-  const selectAll = () => setSelectedModels(AVAILABLE_MODELS.map((m) => m.id));
-  const selectNone = () => setSelectedModels([]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -88,17 +64,14 @@ const Upload = () => {
 
     try {
       const upload = await uploadFile(uploadedFile);
-
       const datasetType = uploadedFile.name.endsWith(".json") ? "json" : "csv";
-      const experiment = await createExperiment({
-        name: uploadedFile.name.replace(/\.[^.]+$/, ""),
-        blob_name: upload.blob_name,
-        dataset_type: datasetType,
-        models: selectedModels,
-      });
 
-      toast({ title: "Benchmark started", description: "Your experiment is being processed." });
-      navigate(`/results?id=${experiment.id}`);
+      toast({ title: "Upload complete", description: "Now set constraints to get recommended models." });
+      navigate(
+        `/constraints?blob_name=${encodeURIComponent(upload.blob_name)}` +
+        `&dataset_type=${encodeURIComponent(datasetType)}` +
+        `&filename=${encodeURIComponent(uploadedFile.name)}`
+      );
     } catch (err) {
       toast({
         title: "Error",
@@ -207,50 +180,6 @@ const Upload = () => {
           </div>
         </Card>
 
-        {/* Model Selection */}
-        {uploadedFile && (
-          <Card className="p-8 mb-6 shadow-elevation">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-semibold">Choose Models</h2>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={selectAll}>
-                  Select all
-                </Button>
-                <Button variant="outline" size="sm" onClick={selectNone}>
-                  Select none
-                </Button>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {AVAILABLE_MODELS.map((model) => (
-                <label
-                  key={model.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
-                    selectedModels.includes(model.id)
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:border-primary/30"
-                  }`}
-                >
-                  <Checkbox
-                    id={`model-${model.id}`}
-                    checked={selectedModels.includes(model.id)}
-                    onCheckedChange={() => toggleModel(model.id)}
-                  />
-                  <div>
-                    <div className="font-medium text-sm">{model.label}</div>
-                    <div className="text-xs text-muted-foreground">{model.provider}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-            {selectedModels.length === 0 && (
-              <p className="text-sm text-destructive mt-3">
-                Select at least one model to start the benchmark.
-              </p>
-            )}
-          </Card>
-        )}
-
         {/* Format Hint */}
         {uploadedFile && (
           <Card className="p-6 mb-6 shadow-elevation">
@@ -276,7 +205,7 @@ const Upload = () => {
             variant="hero"
             size="lg"
             onClick={handleSubmit}
-            disabled={!uploadedFile || isSubmitting || selectedModels.length === 0}
+            disabled={!uploadedFile || isSubmitting}
           >
             {isSubmitting ? (
               <>
@@ -284,7 +213,7 @@ const Upload = () => {
                 Uploading...
               </>
             ) : (
-              "Start Benchmark"
+              "Upload & Set Constraints"
             )}
           </Button>
         </div>

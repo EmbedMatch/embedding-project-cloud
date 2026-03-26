@@ -3,16 +3,48 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
-import { CheckCircle2, Zap, DollarSign, HardDrive } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { CheckCircle2, Zap, DollarSign, HardDrive, AlertCircle, Upload } from "lucide-react";
+import {
+  availableModels,
+  modelMatchesConstraints,
+  parseConstraintsFromParams,
+} from "@/lib/modelCatalog";
 
 const Constraints = () => {
   const navigate = useNavigate();
-  const [maxSize, setMaxSize] = useState([500]); // MB
-  const [maxCost, setMaxCost] = useState([10]); // $/million tokens
-  const [minPerformance, setMinPerformance] = useState([70]); // percentage
+  const [searchParams] = useSearchParams();
 
-  const matchingModels = 47; // Mock count
+  // Dataset context from URL params
+  const blobName = searchParams.get("blob_name");
+  const datasetType = searchParams.get("dataset_type") || "csv";
+  const filename = searchParams.get("filename") || "dataset";
+  const hasDataset = Boolean(blobName);
+  const initialConstraints = parseConstraintsFromParams(searchParams);
+
+  const [maxSize, setMaxSize] = useState([initialConstraints.maxSize]); // MB
+  const [maxCost, setMaxCost] = useState([initialConstraints.maxCost]); // $/million tokens
+  const [minPerformance, setMinPerformance] = useState([initialConstraints.minPerformance]); // percentage
+
+  const matchingModels = availableModels.filter((model) =>
+    modelMatchesConstraints(model, {
+      maxSize: maxSize[0],
+      maxCost: maxCost[0],
+      minPerformance: minPerformance[0],
+    }),
+  ).length;
+
+  // Build URL params string to carry forward
+  const params = new URLSearchParams();
+  if (hasDataset) {
+    params.set("blob_name", blobName!);
+    params.set("dataset_type", datasetType);
+    params.set("filename", filename);
+  }
+  params.set("max_size", String(maxSize[0]));
+  params.set("max_cost", String(maxCost[0]));
+  params.set("min_performance", String(minPerformance[0]));
+  const leaderboardUrl = `/leaderboard?${params.toString()}`;
 
   return (
     <div className="min-h-screen bg-gradient-hero pt-20 pb-12">
@@ -26,6 +58,41 @@ const Constraints = () => {
             Set your requirements to filter the best embedding models
           </p>
         </div>
+
+        {/* No-dataset warning */}
+        {!hasDataset && (
+          <Card className="p-6 mb-6 shadow-elevation border-amber-500/30 bg-amber-500/5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
+                <div>
+                  <div className="font-semibold">No dataset uploaded</div>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a dataset first to run benchmarks with these constraints.
+                    You can still explore the constraint filters below.
+                  </p>
+                </div>
+              </div>
+              <Button variant="hero" onClick={() => navigate("/upload")}>
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Dataset
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Dataset context banner */}
+        {hasDataset && (
+          <Card className="p-4 mb-6 shadow-elevation bg-accent/5 border-accent/20">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-accent" />
+              <span className="text-sm">
+                Dataset: <span className="font-semibold">{filename}</span>
+                <span className="text-muted-foreground ml-2">({datasetType.toUpperCase()})</span>
+              </span>
+            </div>
+          </Card>
+        )}
 
         {/* Model Size Constraint */}
         <Card className="p-8 mb-6 shadow-elevation">
@@ -206,7 +273,7 @@ const Constraints = () => {
           <Button
             variant="hero"
             size="lg"
-            onClick={() => navigate("/leaderboard")}
+            onClick={() => navigate(leaderboardUrl)}
           >
             View Matching Models
           </Button>

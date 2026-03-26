@@ -16,7 +16,14 @@ import {
   ChevronUp,
   CheckCircle2,
 } from "lucide-react";
-import { type ExperimentResult, type ExperimentProgress, getExperiment, getExperimentProgress } from "@/lib/api";
+import {
+  type ExperimentResult,
+  type ExperimentProgress,
+  type ExperimentSummary,
+  getExperiment,
+  getExperimentProgress,
+  getExperimentSummary,
+} from "@/lib/api";
 
 type ModelResult = NonNullable<ExperimentResult["results"]>[number];
 
@@ -380,6 +387,7 @@ const Results = () => {
 
   const [experiment, setExperiment] = useState<ExperimentResult | null>(null);
   const [progress, setProgress] = useState<ExperimentProgress | null>(null);
+  const [summary, setSummary] = useState<ExperimentSummary | null>(null);
   const [error, setError] = useState<string | null>(
     experimentId ? null : "No experiment ID provided",
   );
@@ -387,8 +395,14 @@ const Results = () => {
   useEffect(() => {
     if (!experimentId) return;
     let active = true;
+    let hasFetchedSummary = false;
+    let isFirstRun = true;
 
     const poll = async () => {
+      if (isFirstRun) {
+        setSummary(null);
+        isFirstRun = false;
+      }
       try {
         const [data, prog] = await Promise.all([
           getExperiment(experimentId),
@@ -397,6 +411,17 @@ const Results = () => {
         if (!active) return;
         setExperiment(data);
         setProgress(prog);
+
+        if (data.status === "completed" && !hasFetchedSummary) {
+          try {
+            const summaryData = await getExperimentSummary(experimentId);
+            if (!active) return;
+            setSummary(summaryData);
+            hasFetchedSummary = true;
+          } catch {
+            // Keep UI fallback ranking if summary is not yet available.
+          }
+        }
       } catch (err) {
         if (!active) return;
         setError(err instanceof Error ? err.message : "Failed to load experiment");
@@ -454,21 +479,47 @@ const Results = () => {
 
   const results = experiment.results ?? [];
   const valid = results.filter((r) => !r.error);
-
-  // Determine best model by MRR (fallback to retrieval_accuracy)
+  const bestRetrieval = valid.length > 0
+    ? Math.max(...valid.map((r) => r.retrieval_accuracy * 100))
+    : null;
+  const bestRelevance = valid.length > 0
+    ? Math.max(...valid.map((r) => r.relevance_score))
+    : null;
+  const fastestLatency = valid.length > 0
+    ? Math.min(...valid.map((r) => r.latency_ms))
+    : null;
+  const mrrValues = valid
+    .map((r) => r.mrr)
+    .filter((mrr): mrr is number => mrr != null);
+  const recallAt5Values = valid
+    .map((r) => r.recall_at_5)
+    .filter((recall): recall is number => recall != null);
+  const bestMrr = mrrValues.length > 0 ? Math.max(...mrrValues) : null;
+  const bestRecallAt5 = recallAt5Values.length > 0 ? Math.max(...recallAt5Values) : null;
   const getScore = (r: ModelResult) => r.mrr ?? r.retrieval_accuracy;
 
-  const bestModel =
-    valid.length > 0
+  const rankByModel = new Map(
+    (summary?.ranked_models ?? []).map((r) => [r.model, r.rank]),
+  );
+  const compositeByModel = new Map(
+    (summary?.ranked_models ?? []).map((r) => [r.model, r.composite_score]),
+  );
+  const bestModelName =
+    summary?.recommendation?.model ??
+    (valid.length > 0
       ? valid.reduce((a, b) =>
           getScore(a) > getScore(b) ? a : b,
-        )
-      : null;
+        ).model
+      : null);
 
-  // Sort by score descending
-  const sorted = [...valid].sort(
-    (a, b) => getScore(b) - getScore(a),
-  );
+  const sorted = [...valid].sort((a, b) => {
+    const rankA = rankByModel.get(a.model);
+    const rankB = rankByModel.get(b.model);
+    if (rankA != null && rankB != null) return rankA - rankB;
+    if (rankA != null) return -1;
+    if (rankB != null) return 1;
+    return getScore(b) - getScore(a);
+  });
   const failed = results.filter((r) => r.error);
 
   return (
@@ -481,10 +532,30 @@ const Results = () => {
             <h1 className="text-4xl font-bold">Benchmark Results</h1>
           </div>
           <p className="text-xl text-muted-foreground">
-            {experiment.name} &mdash;{" "}
-            <span className="text-sm font-mono">{experimentId}</span>
+            Dataset: {experiment.name} {/* &mdash;{" "}
+            <span className="text-sm font-mono">{experimentId}</span> */}
           </p>
         </div>
+
+        {/* ── Backend post-benchmark recommendation ── */}
+        {summary?.recommendation && (
+          <Card className="p-6 mb-8 shadow-elevation border-accent/40 bg-accent/5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">
+                  Recommended after benchmarking your selected models
+                </div>
+                <div className="text-2xl font-bold text-accent">
+                  {summary.recommendation.model}
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Composite score: {summary.recommendation.composite_score}/10
+                </p>
+              </div>
+            </div>
+            <p className="text-sm mt-3">{summary.recommendation.reason}</p>
+          </Card>
+        )}
 
         {/* ── Summary stats row ── */}
         {valid.length > 0 && (
@@ -497,20 +568,28 @@ const Results = () => {
                 color: "text-primary",
               },
               {
-                label: sorted[0]?.mrr !== undefined ? "Best MRR" : "Best Retrieval",
-                value: sorted[0]?.mrr !== undefined ? sorted[0].mrr.toFixed(3) : `${((sorted[0]?.retrieval_accuracy ?? 0) * 100).toFixed(1)}%`,
+                label: bestMrr != null ? "Best MRR" : "Best Retrieval",
+                value: bestMrr != null
+                  ? bestMrr.toFixed(3)
+                  : bestRetrieval == null
+                  ? "—"
+                  : `${bestRetrieval.toFixed(1)}%`,
                 icon: Target,
                 color: "text-accent",
               },
               {
-                label: "Best Recall@5",
-                value: sorted[0]?.recall_at_5 !== undefined ? `${(sorted[0].recall_at_5 * 100).toFixed(1)}%` : "—",
+                label: bestRecallAt5 != null ? "Best Recall@5" : "Best Relevance",
+                value: bestRecallAt5 != null
+                  ? `${(bestRecallAt5 * 100).toFixed(1)}%`
+                  : bestRelevance == null
+                  ? "—"
+                  : `${bestRelevance}/10`,
                 icon: BarChart3,
                 color: "text-primary",
               },
               {
                 label: "Fastest Latency",
-                value: `${Math.min(...valid.map((r) => r.latency_ms)).toFixed(0)} ms`,
+                value: fastestLatency == null ? "—" : `${fastestLatency.toFixed(0)} ms`,
                 icon: Zap,
                 color: "text-accent",
               },
@@ -541,7 +620,7 @@ const Results = () => {
                 key={r.model}
                 r={r}
                 rank={idx + 1}
-                isBest={r.model === bestModel?.model}
+                isBest={r.model === bestModelName}
               />
             ))}
 
@@ -577,7 +656,7 @@ const Results = () => {
               <Card className="p-6 shadow-elevation">
                 <h3 className="text-base font-bold mb-4 flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-primary" />
-                  Performance Comparison (MRR)
+                  Performance Comparison
                 </h3>
                 <ComparisonChart results={results} />
               </Card>
@@ -588,14 +667,18 @@ const Results = () => {
               <Card className="p-6 shadow-elevation overflow-x-auto">
                 <h3 className="text-base font-bold mb-4 flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-accent" />
-                  Leaderboard
+                  {summary ? "Composite Leaderboard" : "Leaderboard"}
                 </h3>
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-2 pr-3">#</th>
                       <th className="text-left py-2 pr-3">Model</th>
+                      {summary && (
+                        <th className="text-center py-2 pr-3">Comp.</th>
+                      )}
                       <th className="text-center py-2 pr-3">MRR</th>
+                      <th className="text-center py-2 pr-3">Acc.</th>
                       <th className="text-center py-2 pr-3">R@5</th>
                       <th className="text-center py-2">Rel.</th>
                     </tr>
@@ -614,8 +697,16 @@ const Results = () => {
                         <td className="py-2 pr-3 font-mono truncate max-w-[80px]">
                           {r.model.split("/").pop() ?? r.model}
                         </td>
+                        {summary && (
+                          <td className="py-2 pr-3 text-center">
+                            {(compositeByModel.get(r.model) ?? 0).toFixed(2)}
+                          </td>
+                        )}
                         <td className="py-2 pr-3 text-center text-[10px] md:text-xs">
-                          {r.mrr !== undefined ? r.mrr.toFixed(3) : `${(r.retrieval_accuracy * 100).toFixed(1)}%`}
+                          {r.mrr !== undefined ? r.mrr.toFixed(3) : "—"}
+                        </td>
+                        <td className="py-2 pr-3 text-center">
+                          {(r.retrieval_accuracy * 100).toFixed(1)}%
                         </td>
                         <td className="py-2 pr-3 text-center text-[10px] md:text-xs text-muted-foreground">
                           {r.recall_at_5 !== undefined ? `${(r.recall_at_5 * 100).toFixed(1)}%` : "—"}

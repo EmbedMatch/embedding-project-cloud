@@ -66,11 +66,44 @@ export interface ExperimentResult {
   | null;
 }
 
+export interface ExperimentSummary {
+  id: string;
+  status: string;
+  ranked_models: {
+    model: string;
+    num_texts?: number;
+    dimensions?: number;
+    latency_ms?: number;
+    relevance_score?: number;
+    retrieval_accuracy?: number;
+    composite_score: number;
+    rank: number;
+  }[];
+  recommendation: {
+    model: string;
+    composite_score: number;
+    relevance_score?: number;
+    retrieval_accuracy?: number;
+    latency_ms?: number;
+    reason: string;
+  } | null;
+  message?: string;
+}
+
 export async function getExperiment(id: string): Promise<ExperimentResult> {
   const res = await fetch(`${API_URL}/experiments/${id}`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || "Experiment not found");
+  }
+  return res.json();
+}
+
+export async function getExperimentSummary(id: string): Promise<ExperimentSummary> {
+  const res = await fetch(`${API_URL}/experiments/${id}/summary`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to load summary");
   }
   return res.json();
 }
