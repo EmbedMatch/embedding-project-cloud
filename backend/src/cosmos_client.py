@@ -224,29 +224,24 @@ def get_experiment_summary(experiment_id: str) -> dict[str, Any] | None:
             "message": "All models failed during benchmarking.",
         }
 
-    # Composite score: 0.5 * relevance + 0.3 * retrieval(×10) + 0.2 * speed(×10)
+    # Composite score: 0.4 * MRR(×10) + 0.25 * Recall@5(×10) + 0.15 * relevance + 0.2 * speed(×10)
     # Note: with a single model, speed score is always 0 (normalized to itself).
-    # This is acceptable — relative speed ranking only meaningful with ≥2 models.
+    # This is acceptable
     max_latency = max(r.get("latency_ms", 0) for r in valid_results) or 1
 
-    scored = []
     for r in valid_results:
+        mrr = r.get("mrr", r.get("retrieval_accuracy", 0))
+        recall_5 = r.get("recall_at_5", r.get("retrieval_accuracy", 0))
         relevance = r.get("relevance_score", 0)
-        retrieval = r.get("retrieval_accuracy", 0)
         latency = r.get("latency_ms", 0)
         normalized_latency = latency / max_latency
 
-        scored.append(
-            {
-                **r,
-                "composite_score": round(
-                    0.5 * relevance + 0.3 * (retrieval * 10) + 0.2 * ((1 - normalized_latency) * 10),
-                    2,
-                ),
-            }
+        r["composite_score"] = round(
+            0.4 * (mrr * 10) + 0.25 * (recall_5 * 10) + 0.15 * relevance + 0.2 * ((1 - normalized_latency) * 10),
+            2,
         )
 
-    ranked = sorted(scored, key=lambda r: r["composite_score"], reverse=True)
+    ranked = sorted(valid_results, key=lambda r: r["composite_score"], reverse=True)
 
     for i, r in enumerate(ranked, start=1):
         r["rank"] = i
@@ -260,14 +255,17 @@ def get_experiment_summary(experiment_id: str) -> dict[str, Any] | None:
         "recommendation": {
             "model": best["model"],
             "composite_score": best["composite_score"],
+            "mrr": best.get("mrr"),
+            "recall_at_5": best.get("recall_at_5"),
             "relevance_score": best.get("relevance_score"),
             "retrieval_accuracy": best.get("retrieval_accuracy"),
             "latency_ms": best.get("latency_ms"),
             "reason": (
                 f"{best['model']} achieved the highest composite score of "
-                f"{best['composite_score']}/10, balancing relevance "
-                f"({best.get('relevance_score', 'N/A')}), retrieval accuracy "
-                f"({best.get('retrieval_accuracy', 'N/A')}), and latency "
+                f"{best['composite_score']}/10, with MRR "
+                f"({best.get('mrr', 'N/A')}), Recall@5 "
+                f"({best.get('recall_at_5', 'N/A')}), relevance "
+                f"({best.get('relevance_score', 'N/A')}), and latency "
                 f"({best.get('latency_ms', 'N/A')}ms)."
             ),
         },

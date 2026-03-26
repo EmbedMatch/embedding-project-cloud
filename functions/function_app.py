@@ -12,6 +12,7 @@ import io
 import json
 import logging
 import os
+import random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -61,17 +62,34 @@ FASTEMBED_MODELS = {
 
 AZURE_MODELS = {"text-embedding-ada-002", "text-embedding-3-large"}
 
+# How many texts to evaluate (generate queries for) when the pool is large
+EVAL_SUBSET_SIZE = 20
+# Minimum pool size before we bother splitting eval vs pool
+MIN_POOL_SPLIT_SIZE = 30
+
 QUERY_GENERATION_PROMPT = """\
-You are a search query generator for benchmarking embedding models.
-Given a document, write a search query that someone would type if they
-needed this information but had NEVER seen the document.
-CRITICAL RULES:
-1) Do NOT reuse any nouns, verbs, or phrases from the document — use
-   synonyms, related concepts, or describe the problem from the user's
-   perspective.
-2) The query should be answerable by this document but use completely
-   different vocabulary.
-3) Think about what real-world problem the user is trying to solve.
+You are simulating a real user searching for information. You have NOT
+read the document below — you only know the PROBLEM or NEED it solves.
+
+Write a short, natural search query (5-15 words) that someone would type
+into a search engine when they need the information in this document.
+
+RULES:
+1. Do NOT copy phrases, jargon, or proper nouns from the document.
+2. Describe the user's SYMPTOM, GOAL, or QUESTION — not the document's
+   content.
+3. Use everyday language, as if you're explaining the problem to a friend.
+4. The query must be specific enough that this document is the best answer,
+   but phrased completely differently.
+
+Examples:
+- Document about "OAuth 2.0 PKCE flow for SPAs"
+  BAD:  "OAuth 2.0 PKCE flow single page application"
+  GOOD: "how to securely log in users from a javascript app without a backend"
+- Document about "Kubernetes pod affinity and anti-affinity rules"
+  BAD:  "Kubernetes pod affinity configuration"
+  GOOD: "make sure my containers always run on different servers"
+
 Output ONLY the query text, nothing else."""
 
 JUDGE_SCORING_PROMPT = """\
@@ -180,39 +198,72 @@ def embed_batch_fastembed(texts: list[str], model_name: str) -> np.ndarray:
 
 def run_benchmark(
     client: AzureOpenAI,
-    texts: list[str],
+    pool_texts: list[str],
+    eval_texts: list[str],
+    eval_indices: list[int],
     queries: list[str],
-    judge_scores: list[dict[str, Any]],
     model_name: str = "",
 ) -> dict[str, Any]:
-    """Embed texts with the specified model and compute metrics."""
+    """Embed the full pool, retrieve for eval queries, judge retrieved docs.
+
+    Args:
+        pool_texts: ALL texts in the corpus (the retrieval haystack).
+        eval_texts: The subset of texts that have matching queries.
+        eval_indices: Indices of eval_texts within pool_texts.
+        queries: Synthetic queries (one per eval_text).
+        model_name: Which embedding model to benchmark.
+
+    Returns a dict with MRR, Recall@K, relevance, latency, etc.
+    """
     model_name = model_name or CFG.embedding_model
 
-    # Step 1: Embed texts
+    # Step 1: Embed the FULL pool
     start = datetime.now(UTC)
     if model_name in AZURE_MODELS:
-        embeddings = embed_batch(client, texts, model=model_name)
+        pool_embeddings = embed_batch(client, pool_texts, model=model_name)
     elif model_name in FASTEMBED_MODELS:
-        embeddings = embed_batch_fastembed(texts, model_name)
+        pool_embeddings = embed_batch_fastembed(pool_texts, model_name)
     else:
         raise ValueError(f"Unknown model: {model_name}")
     latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
 
-    n_texts, n_dims = embeddings.shape
+    n_pool, n_dims = pool_embeddings.shape
 
-    # Step 2: Score retrieval with THIS model's embeddings
-    retrieval = score_retrieval(client, texts, queries, model_name=model_name)
+    # Step 2: Embed the queries with the SAME model
+    if model_name in AZURE_MODELS:
+        query_embeddings = embed_batch(client, queries, model=model_name)
+    elif model_name in FASTEMBED_MODELS:
+        query_embeddings = embed_batch_fastembed(queries, model_name)
+    else:
+        query_embeddings = embed_batch(client, queries)
 
-    # Step 3: Compute average relevance from pre-computed judge scores
+    # Step 3: Compute retrieval metrics (MRR, Recall@K)
+    correct_indices = np.array(eval_indices)
+    retrieval = score_retrieval(
+        pool_embeddings,
+        query_embeddings,
+        correct_indices,
+    )
+
+    # Step 4: LLM-judge on the ACTUALLY RETRIEVED top-1 docs (non-circular)
+    top1_indices = retrieval["top1_indices"]
+    retrieved_texts = [pool_texts[idx] for idx in top1_indices]
+    judge_scores = score_relevance_llm(client, retrieved_texts, queries)
     avg_relevance = round(sum(s["score"] for s in judge_scores) / len(judge_scores), 2)
 
     return {
         "model": model_name,
-        "num_texts": n_texts,
+        "num_texts": n_pool,
         "dimensions": int(n_dims),
         "latency_ms": round(latency_ms, 1),
         "relevance_score": avg_relevance,
-        "retrieval_accuracy": retrieval["retrieval_accuracy"],
+        "retrieval_accuracy": retrieval["recall@1"],
+        "mrr": retrieval["mrr"],
+        "recall_at_1": retrieval["recall@1"],
+        "recall_at_5": retrieval["recall@5"],
+        "recall_at_10": retrieval["recall@10"],
+        "pool_size": n_pool,
+        "eval_size": len(queries),
         "judge_scores": judge_scores,
     }
 
@@ -256,9 +307,9 @@ def benchmark_job_listener(msg: func.QueueMessage) -> None:
 
         raw = download_blob(experiment["blob_name"])
         rows = parse_dataset(raw, experiment.get("dataset_type", "csv"))
-        texts = extract_texts(rows)
+        pool_texts = extract_texts(rows)
 
-        if not texts:
+        if not pool_texts:
             update_status(
                 container, experiment, "failed", error="No text found in dataset"
             )
@@ -266,9 +317,19 @@ def benchmark_job_listener(msg: func.QueueMessage) -> None:
 
         client = openai_client()
 
-        # Generate queries and judge scores ONCE (they depend on text, not model)
-        queries = generate_queries(client, texts)
-        judge_scores = score_relevance_llm(client, texts, queries)
+        # ── Split into retrieval pool vs evaluation subset ──
+        if len(pool_texts) >= MIN_POOL_SPLIT_SIZE:
+            eval_count = min(EVAL_SUBSET_SIZE, len(pool_texts) // 3)
+            eval_indices = sorted(random.sample(range(len(pool_texts)), eval_count))
+        else:
+            # Small dataset — eval on everything (pool = eval)
+            eval_indices = list(range(len(pool_texts)))
+
+        eval_texts = [pool_texts[i] for i in eval_indices]
+        logging.info("Pool size: %d, eval subset: %d", len(pool_texts), len(eval_texts))
+
+        # Generate adversarial queries ONCE (they depend on text, not model)
+        queries = generate_queries(client, eval_texts)
 
         # Run benchmark for each registered model
         ALL_MODELS = resolve_models(experiment)
@@ -278,14 +339,21 @@ def benchmark_job_listener(msg: func.QueueMessage) -> None:
             logging.info("Benchmarking model: %s", model_name)
             try:
                 result = run_benchmark(
-                    client, texts, queries, judge_scores, model_name=model_name
+                    client,
+                    pool_texts,
+                    eval_texts,
+                    eval_indices,
+                    queries,
+                    model_name=model_name,
                 )
                 results_array.append(result)
                 logging.info(
-                    "  %s: %d dims, %.0fms, relevance=%.1f",
+                    "  %s: %d dims, %.0fms, MRR=%.3f, R@5=%.3f, rel=%.1f",
                     model_name,
                     result["dimensions"],
                     result["latency_ms"],
+                    result["mrr"],
+                    result["recall_at_5"],
                     result["relevance_score"],
                 )
             except Exception:
@@ -327,7 +395,7 @@ def _generate_single_query(client: AzureOpenAI, text: str) -> str:
             },
             {"role": "user", "content": f"Document: \n{text}"},
         ],
-        temperature=0.2,
+        temperature=0.7,
         max_tokens=60,
     )
     content = response.choices[0].message.content
@@ -348,45 +416,67 @@ def generate_queries(client: AzureOpenAI, texts: list[str]) -> list[str]:
 
 
 def score_retrieval(
-    client: AzureOpenAI,
-    texts: list[str],
-    queries: list[str],
-    model_name: str = "",
+    pool_embeddings: np.ndarray,
+    query_embeddings: np.ndarray,
+    correct_indices: np.ndarray,
+    k_values: list[int] | None = None,
 ) -> dict[str, Any]:
-    """Embed queries + texts with the specified model, compute retrieval accuracy via cosine similarity."""
-    model_name = model_name or CFG.embedding_model
+    """Compute MRR + Recall@K from pre-computed embeddings.
 
-    # Embed both sets using the SAME model being benchmarked
-    if model_name in AZURE_MODELS:
-        text_embeddings = embed_batch(client, texts, model=model_name)
-        query_embeddings = embed_batch(client, queries, model=model_name)
-    elif model_name in FASTEMBED_MODELS:
-        text_embeddings = embed_batch_fastembed(texts, model_name)
-        query_embeddings = embed_batch_fastembed(queries, model_name)
-    else:
-        text_embeddings = embed_batch(client, texts)
-        query_embeddings = embed_batch(client, queries)
+    Args:
+        pool_embeddings: (P, D) embeddings for the entire retrieval pool.
+        query_embeddings: (Q, D) embeddings for the eval queries.
+        correct_indices: length-Q array; correct_indices[i] is the index
+                         in pool_embeddings that query i should retrieve.
+        k_values: which K values to compute Recall@K for.
+
+    Returns dict with mrr, recall@1/3/5/10, top1_indices, etc.
+    """
+    if k_values is None:
+        k_values = [1, 3, 5, 10]
 
     # Normalize for cosine similarity
-    text_norms = text_embeddings / np.linalg.norm(
-        text_embeddings, axis=1, keepdims=True
+    pool_norms = pool_embeddings / np.linalg.norm(
+        pool_embeddings, axis=1, keepdims=True
     )
     query_norms = query_embeddings / np.linalg.norm(
         query_embeddings, axis=1, keepdims=True
     )
 
-    # Similarity matrix: (N, N) — each row i is query_i's similarity to all texts
-    similarity_matrix = query_norms @ text_norms.T
+    # Similarity matrix: (Q, P) — each row i is query_i's similarity to all pool texts
+    similarity_matrix = query_norms @ pool_norms.T
 
-    # For each query, check if the highest-similarity text is the correct one
-    predicted_indices = np.argmax(similarity_matrix, axis=1)
-    correct_indices = np.arange(len(texts))
-    hits = int(np.sum(predicted_indices == correct_indices))
+    # Rank pool texts for each query (descending similarity)
+    ranked_indices = np.argsort(-similarity_matrix, axis=1)
+
+    num_queries = len(correct_indices)
+    reciprocal_ranks: list[float] = []
+    recall_at_k: dict[int, int] = {k: 0 for k in k_values}
+    top1_indices: list[int] = []
+
+    for i in range(num_queries):
+        # Position of the correct document in the ranked list
+        rank_positions = np.where(ranked_indices[i] == correct_indices[i])[0]
+        rank = (
+            int(rank_positions[0]) + 1 if len(rank_positions) > 0 else num_queries + 1
+        )
+
+        reciprocal_ranks.append(1.0 / rank)
+        top1_indices.append(int(ranked_indices[i][0]))
+
+        for k in k_values:
+            if rank <= k:
+                recall_at_k[k] += 1
+
+    mrr = round(sum(reciprocal_ranks) / num_queries, 4)
+    recall = {f"recall@{k}": round(v / num_queries, 4) for k, v in recall_at_k.items()}
 
     return {
-        "retrieval_accuracy": round(hits / len(texts), 4),
-        "hits": hits,
-        "total": len(texts),
+        "mrr": mrr,
+        **recall,
+        "top1_indices": top1_indices,
+        "num_queries": num_queries,
+        "pool_size": pool_embeddings.shape[0],
     }
 
 
