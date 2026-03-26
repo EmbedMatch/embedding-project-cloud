@@ -5,6 +5,11 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Zap, DollarSign, HardDrive, AlertCircle, Upload } from "lucide-react";
+import {
+  availableModels,
+  modelMatchesConstraints,
+  parseConstraintsFromParams,
+} from "@/lib/modelCatalog";
 
 const Constraints = () => {
   const navigate = useNavigate();
@@ -15,19 +20,31 @@ const Constraints = () => {
   const datasetType = searchParams.get("dataset_type") || "csv";
   const filename = searchParams.get("filename") || "dataset";
   const hasDataset = Boolean(blobName);
+  const initialConstraints = parseConstraintsFromParams(searchParams);
 
-  const [maxSize, setMaxSize] = useState([500]); // MB
-  const [maxCost, setMaxCost] = useState([10]); // $/million tokens
-  const [minPerformance, setMinPerformance] = useState([70]); // percentage
+  const [maxSize, setMaxSize] = useState([initialConstraints.maxSize]); // MB
+  const [maxCost, setMaxCost] = useState([initialConstraints.maxCost]); // $/million tokens
+  const [minPerformance, setMinPerformance] = useState([initialConstraints.minPerformance]); // percentage
 
-  const matchingModels = 47; // Mock count
+  const matchingModels = availableModels.filter((model) =>
+    modelMatchesConstraints(model, {
+      maxSize: maxSize[0],
+      maxCost: maxCost[0],
+      minPerformance: minPerformance[0],
+    }),
+  ).length;
 
   // Build URL params string to carry forward
-  const datasetParams = hasDataset
-    ? `?blob_name=${encodeURIComponent(blobName!)}` +
-      `&dataset_type=${encodeURIComponent(datasetType)}` +
-      `&filename=${encodeURIComponent(filename)}`
-    : "";
+  const params = new URLSearchParams();
+  if (hasDataset) {
+    params.set("blob_name", blobName!);
+    params.set("dataset_type", datasetType);
+    params.set("filename", filename);
+  }
+  params.set("max_size", String(maxSize[0]));
+  params.set("max_cost", String(maxCost[0]));
+  params.set("min_performance", String(minPerformance[0]));
+  const leaderboardUrl = `/leaderboard?${params.toString()}`;
 
   return (
     <div className="min-h-screen bg-gradient-hero pt-20 pb-12">
@@ -256,7 +273,7 @@ const Constraints = () => {
           <Button
             variant="hero"
             size="lg"
-            onClick={() => navigate(`/leaderboard${datasetParams}`)}
+            onClick={() => navigate(leaderboardUrl)}
           >
             View Matching Models
           </Button>

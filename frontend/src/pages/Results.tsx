@@ -16,7 +16,14 @@ import {
   ChevronUp,
   CheckCircle2,
 } from "lucide-react";
-import { type ExperimentResult, type ExperimentProgress, getExperiment, getExperimentProgress } from "@/lib/api";
+import {
+  type ExperimentResult,
+  type ExperimentProgress,
+  type ExperimentSummary,
+  getExperiment,
+  getExperimentProgress,
+  getExperimentSummary,
+} from "@/lib/api";
 
 type ModelResult = NonNullable<ExperimentResult["results"]>[number];
 
@@ -364,6 +371,7 @@ const Results = () => {
 
   const [experiment, setExperiment] = useState<ExperimentResult | null>(null);
   const [progress, setProgress] = useState<ExperimentProgress | null>(null);
+  const [summary, setSummary] = useState<ExperimentSummary | null>(null);
   const [error, setError] = useState<string | null>(
     experimentId ? null : "No experiment ID provided",
   );
@@ -371,6 +379,8 @@ const Results = () => {
   useEffect(() => {
     if (!experimentId) return;
     let active = true;
+    let hasFetchedSummary = false;
+    setSummary(null);
 
     const poll = async () => {
       try {
@@ -381,6 +391,17 @@ const Results = () => {
         if (!active) return;
         setExperiment(data);
         setProgress(prog);
+
+        if (data.status === "completed" && !hasFetchedSummary) {
+          try {
+            const summaryData = await getExperimentSummary(experimentId);
+            if (!active) return;
+            setSummary(summaryData);
+            hasFetchedSummary = true;
+          } catch {
+            // Keep UI fallback ranking if summary is not yet available.
+          }
+        }
       } catch (err) {
         if (!active) return;
         setError(err instanceof Error ? err.message : "Failed to load experiment");
@@ -438,19 +459,38 @@ const Results = () => {
 
   const results = experiment.results ?? [];
   const valid = results.filter((r) => !r.error);
+  const bestRetrieval = valid.length > 0
+    ? Math.max(...valid.map((r) => r.retrieval_accuracy * 100))
+    : null;
+  const bestRelevance = valid.length > 0
+    ? Math.max(...valid.map((r) => r.relevance_score))
+    : null;
+  const fastestLatency = valid.length > 0
+    ? Math.min(...valid.map((r) => r.latency_ms))
+    : null;
 
-  // Determine best model by retrieval accuracy
-  const bestModel =
-    valid.length > 0
+  const rankByModel = new Map(
+    (summary?.ranked_models ?? []).map((r) => [r.model, r.rank]),
+  );
+  const compositeByModel = new Map(
+    (summary?.ranked_models ?? []).map((r) => [r.model, r.composite_score]),
+  );
+  const bestModelName =
+    summary?.recommendation?.model ??
+    (valid.length > 0
       ? valid.reduce((a, b) =>
           a.retrieval_accuracy > b.retrieval_accuracy ? a : b,
-        )
-      : null;
+        ).model
+      : null);
 
-  // Sort by retrieval accuracy descending
-  const sorted = [...valid].sort(
-    (a, b) => b.retrieval_accuracy - a.retrieval_accuracy,
-  );
+  const sorted = [...valid].sort((a, b) => {
+    const rankA = rankByModel.get(a.model);
+    const rankB = rankByModel.get(b.model);
+    if (rankA != null && rankB != null) return rankA - rankB;
+    if (rankA != null) return -1;
+    if (rankB != null) return 1;
+    return b.retrieval_accuracy - a.retrieval_accuracy;
+  });
   const failed = results.filter((r) => r.error);
 
   return (
@@ -468,6 +508,26 @@ const Results = () => {
           </p>
         </div>
 
+        {/* ── Backend post-benchmark recommendation ── */}
+        {summary?.recommendation && (
+          <Card className="p-6 mb-8 shadow-elevation border-accent/40 bg-accent/5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">
+                  Recommended after benchmarking your selected models
+                </div>
+                <div className="text-2xl font-bold text-accent">
+                  {summary.recommendation.model}
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Composite score: {summary.recommendation.composite_score}/10
+                </p>
+              </div>
+            </div>
+            <p className="text-sm mt-3">{summary.recommendation.reason}</p>
+          </Card>
+        )}
+
         {/* ── Summary stats row ── */}
         {valid.length > 0 && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -480,19 +540,19 @@ const Results = () => {
               },
               {
                 label: "Best Retrieval",
-                value: `${(sorted[0]?.retrieval_accuracy * 100).toFixed(1)}%`,
+                value: bestRetrieval == null ? "—" : `${bestRetrieval.toFixed(1)}%`,
                 icon: Target,
                 color: "text-accent",
               },
               {
                 label: "Best Relevance",
-                value: `${sorted[0]?.relevance_score ?? "—"}/10`,
+                value: bestRelevance == null ? "—" : `${bestRelevance}/10`,
                 icon: BarChart3,
                 color: "text-primary",
               },
               {
                 label: "Fastest Latency",
-                value: `${Math.min(...valid.map((r) => r.latency_ms)).toFixed(0)} ms`,
+                value: fastestLatency == null ? "—" : `${fastestLatency.toFixed(0)} ms`,
                 icon: Zap,
                 color: "text-accent",
               },
@@ -523,7 +583,7 @@ const Results = () => {
                 key={r.model}
                 r={r}
                 rank={idx + 1}
-                isBest={r.model === bestModel?.model}
+                isBest={r.model === bestModelName}
               />
             ))}
 
@@ -570,13 +630,16 @@ const Results = () => {
               <Card className="p-6 shadow-elevation overflow-x-auto">
                 <h3 className="text-base font-bold mb-4 flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-accent" />
-                  Leaderboard
+                  {summary ? "Composite Leaderboard" : "Leaderboard"}
                 </h3>
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-2 pr-3">#</th>
                       <th className="text-left py-2 pr-3">Model</th>
+                      {summary && (
+                        <th className="text-center py-2 pr-3">Comp.</th>
+                      )}
                       <th className="text-center py-2 pr-3">Acc.</th>
                       <th className="text-center py-2">Rel.</th>
                     </tr>
@@ -595,6 +658,11 @@ const Results = () => {
                         <td className="py-2 pr-3 font-mono truncate max-w-[80px]">
                           {r.model.split("/").pop() ?? r.model}
                         </td>
+                        {summary && (
+                          <td className="py-2 pr-3 text-center">
+                            {(compositeByModel.get(r.model) ?? 0).toFixed(2)}
+                          </td>
+                        )}
                         <td className="py-2 pr-3 text-center">
                           {(r.retrieval_accuracy * 100).toFixed(1)}%
                         </td>

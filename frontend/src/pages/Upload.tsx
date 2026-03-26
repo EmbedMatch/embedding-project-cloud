@@ -66,9 +66,9 @@ const Upload = () => {
       const upload = await uploadFile(uploadedFile);
       const datasetType = uploadedFile.name.endsWith(".json") ? "json" : "csv";
 
-      toast({ title: "Upload complete", description: "Now choose which models to benchmark." });
+      toast({ title: "Upload complete", description: "Now set constraints to get recommended models." });
       navigate(
-        `/leaderboard?blob_name=${encodeURIComponent(upload.blob_name)}` +
+        `/constraints?blob_name=${encodeURIComponent(upload.blob_name)}` +
         `&dataset_type=${encodeURIComponent(datasetType)}` +
         `&filename=${encodeURIComponent(uploadedFile.name)}`
       );
@@ -213,7 +213,7 @@ const Upload = () => {
                 Uploading...
               </>
             ) : (
-              "Upload & Choose Models"
+              "Upload & Set Constraints"
             )}
           </Button>
         </div>
