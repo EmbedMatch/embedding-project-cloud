@@ -481,12 +481,16 @@ def test_get_experiment_summary_ranking(mock_get: MagicMock) -> None:
                 "model": "model-A",
                 "relevance_score": 6.0,
                 "retrieval_accuracy": 0.8,
+                "mrr": 0.6,
+                "recall_at_5": 0.7,
                 "latency_ms": 1000,
             },
             {
                 "model": "model-B",
                 "relevance_score": 8.0,
                 "retrieval_accuracy": 0.9,
+                "mrr": 0.85,
+                "recall_at_5": 0.95,
                 "latency_ms": 500,
             },
         ],
@@ -544,7 +548,7 @@ def test_get_experiment_summary_all_failed(mock_get: MagicMock) -> None:
 @pytest.mark.unit
 @patch("src.cosmos_client.get_experiment")
 def test_get_experiment_summary_composite_score_math(mock_get: MagicMock) -> None:
-    """Verify composite score formula: 0.5*rel + 0.3*ret*10 + 0.2*speed*10."""
+    """Verify composite score formula: 0.4*MRR*10 + 0.25*R@5*10 + 0.15*rel + 0.2*speed*10."""
     mock_get.return_value = {
         "id": "exp-1",
         "status": "completed",
@@ -552,7 +556,9 @@ def test_get_experiment_summary_composite_score_math(mock_get: MagicMock) -> Non
             {
                 "model": "only-model",
                 "relevance_score": 8.0,
-                "retrieval_accuracy": 0.9,
+                "mrr": 0.75,
+                "recall_at_5": 0.9,
+                "retrieval_accuracy": 0.75,
                 "latency_ms": 100,
             },
         ],
@@ -560,8 +566,9 @@ def test_get_experiment_summary_composite_score_math(mock_get: MagicMock) -> Non
     result = get_experiment_summary("exp-1")
     assert result is not None
     # Single model → normalized_latency = 100/100 = 1.0, speed_score = 0
-    # composite = 0.5*8.0 + 0.3*(0.9*10) + 0.2*(0*10) = 4.0 + 2.7 + 0 = 6.7
-    assert result["ranked_models"][0]["composite_score"] == pytest.approx(6.7, abs=0.01)
+    # composite = 0.4*(0.75*10) + 0.25*(0.9*10) + 0.15*8.0 + 0.2*(0*10)
+    #           = 0.4*7.5 + 0.25*9.0 + 1.2 + 0 = 3.0 + 2.25 + 1.2 = 6.45
+    assert result["ranked_models"][0]["composite_score"] == pytest.approx(6.45, abs=0.01)
 
 
 @pytest.mark.unit

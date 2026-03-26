@@ -82,40 +82,46 @@ def test_extract_texts_empty_rows():
 
 
 @pytest.mark.unit
-def test_run_benchmark_returns_expected_fields():
+def test_run_benchmark_returns_expected_fields(monkeypatch):
     mock_client = MagicMock()
     mock_resp = MagicMock()
+    # 3 pool texts, each with 3 dims
     mock_resp.data = [
         MagicMock(embedding=[0.1, 0.2, 0.3]),
         MagicMock(embedding=[0.4, 0.5, 0.6]),
+        MagicMock(embedding=[0.7, 0.8, 0.9]),
     ]
     mock_client.embeddings.create.return_value = mock_resp
 
-    texts = ["hello", "world"]
-    queries = ["search hello", "search world"]
-    judge_scores = [
-        {
-            "query": "search hello",
-            "document_preview": "hello",
-            "score": 8,
-            "reason": "relevant",
-        },
-        {
-            "query": "search world",
-            "document_preview": "world",
-            "score": 9,
-            "reason": "relevant",
-        },
+    # Mock the LLM judge (now called inside run_benchmark)
+    fake_judge_scores = [
+        {"query": "q1", "document_preview": "hello", "score": 7, "reason": "ok"},
+        {"query": "q2", "document_preview": "world", "score": 8, "reason": "ok"},
     ]
-    result = run_benchmark(mock_client, texts, queries, judge_scores)
+    monkeypatch.setattr(
+        "function_app.score_relevance_llm", lambda *_args, **_kw: fake_judge_scores
+    )
+
+    pool_texts = ["hello", "world", "distractor"]
+    eval_texts = ["hello", "world"]
+    eval_indices = [0, 1]
+    queries = ["find hello", "find world"]
+
+    result = run_benchmark(mock_client, pool_texts, eval_texts, eval_indices, queries)
 
     assert result["model"] == Config().embedding_model
-    assert result["num_texts"] == 2
+    assert result["num_texts"] == 3  # full pool size
     assert result["dimensions"] == 3
     assert "latency_ms" in result
     assert 0.0 <= result["relevance_score"] <= 10.0
+    assert "mrr" in result
+    assert "recall_at_1" in result
+    assert "recall_at_5" in result
+    assert "recall_at_10" in result
     assert "retrieval_accuracy" in result
-    assert result["judge_scores"] == judge_scores
+    assert result["pool_size"] == 3
+    assert result["eval_size"] == 2
+    assert result["judge_scores"] == fake_judge_scores
 
 
 @pytest.mark.unit

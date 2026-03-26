@@ -34,30 +34,36 @@ export async function createExperiment(data: {
 }
 
 export interface ExperimentResult {
-    id: string;
-    name: string;
-    status: string;
-    blob_name: string;
-    dataset_type: string;
-    created_at: string;
-    models?: string[];
-    results:
-        | {
-              model: string;
-              num_texts: number;
-              dimensions: number;
-              latency_ms: number;
-              relevance_score: number;
-              retrieval_accuracy: number;
-              judge_scores: {
-                  query: string;
-                  document_preview: string;
-                  score: number;
-                  reason: string;
-              }[];
-              error?: string;
-          }[]
-        | null;
+  id: string;
+  name: string;
+  status: string;
+  blob_name: string;
+  dataset_type: string;
+  created_at: string;
+  models?: string[];
+  results:
+  | {
+    model: string;
+    num_texts: number;
+    dimensions: number;
+    latency_ms: number;
+    relevance_score: number;
+    retrieval_accuracy: number;
+    mrr?: number;
+    recall_at_1?: number;
+    recall_at_5?: number;
+    recall_at_10?: number;
+    pool_size?: number;
+    eval_size?: number;
+    judge_scores: {
+      query: string;
+      document_preview: string;
+      score: number;
+      reason: string;
+    }[];
+    error?: string;
+  }[]
+  | null;
 }
 
 export interface ExperimentSummary {
