@@ -209,7 +209,6 @@ function ModelCard({
   isBest: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const retrievalPct = r.retrieval_accuracy * 100;
   const relevancePct = (r.relevance_score / 10) * 100;
 
   return (
@@ -258,27 +257,42 @@ function ModelCard({
 
       {/* Score rows */}
       <div className="px-5 pb-5 space-y-4">
-        <div>
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span className="flex items-center gap-1">
-              <Target className="w-3 h-3" /> Retrieval Accuracy
-            </span>
-            <span className="font-bold text-foreground">
-              {retrievalPct.toFixed(1)}%
-            </span>
+        {r.mrr !== undefined && (
+          <div>
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+              <span className="flex items-center gap-1">
+                <Target className="w-3 h-3" /> Mean Reciprocal Rank (MRR)
+              </span>
+              <span className="font-bold text-foreground">
+                {r.mrr.toFixed(3)}
+              </span>
+            </div>
+            <ScoreBar value={r.mrr * 100} max={100} color="primary" />
           </div>
-          <ScoreBar value={retrievalPct} max={100} color="primary" />
-        </div>
-        <div>
-          <div className="flex justify-between text-xs text-muted-foreground mb-1">
-            <span className="flex items-center gap-1">
-              <BarChart3 className="w-3 h-3" /> Relevance Score
-            </span>
-            <span className="font-bold text-foreground">
-              {r.relevance_score}/10
-            </span>
+        )}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+              <span className="flex items-center gap-1">
+                <BarChart3 className="w-3 h-3" /> {r.mrr !== undefined ? "Recall@5" : "Retrieval Accuracy"}
+              </span>
+              <span className="font-bold text-foreground">
+                {((r.recall_at_5 ?? r.retrieval_accuracy) * 100).toFixed(1)}%
+              </span>
+            </div>
+            <ScoreBar value={(r.recall_at_5 ?? r.retrieval_accuracy) * 100} max={100} color="accent" />
           </div>
-          <ScoreBar value={relevancePct} max={100} color="accent" />
+          <div>
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+              <span className="flex items-center gap-1">
+                <BarChart3 className="w-3 h-3" /> Relevance
+              </span>
+              <span className="font-bold text-foreground">
+                {r.relevance_score}/10
+              </span>
+            </div>
+            <ScoreBar value={relevancePct} max={100} color="warning" />
+          </div>
         </div>
         <div className="flex justify-between text-xs pt-1">
           <span className="flex items-center gap-1 text-muted-foreground">
@@ -328,12 +342,14 @@ function ModelCard({
 // ─── Visual comparison chart (pure CSS) ──────────────────────────────────────
 function ComparisonChart({ results }: { results: ModelResult[] }) {
   const valid = results.filter((r) => !r.error);
-  const maxRetrieval = Math.max(...valid.map((r) => r.retrieval_accuracy * 100));
+  const getScore = (r: ModelResult) => r.mrr ?? r.retrieval_accuracy;
+  const maxScore = Math.max(...valid.map(getScore));
 
   return (
     <div className="space-y-3">
       {valid.map((r, i) => {
-        const pct = (r.retrieval_accuracy * 100 / maxRetrieval) * 100;
+        const score = getScore(r);
+        const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
         return (
           <div key={i} className="flex items-center gap-3">
             <div className="w-36 text-xs font-medium truncate shrink-0 text-right">
@@ -345,7 +361,7 @@ function ComparisonChart({ results }: { results: ModelResult[] }) {
                 style={{ width: `${pct}%` }}
               >
                 <span className="text-xs font-bold text-white">
-                  {(r.retrieval_accuracy * 100).toFixed(1)}%
+                  {r.mrr !== undefined ? score.toFixed(3) : `${(score * 100).toFixed(1)}%`}
                 </span>
               </div>
             </div>
@@ -439,17 +455,19 @@ const Results = () => {
   const results = experiment.results ?? [];
   const valid = results.filter((r) => !r.error);
 
-  // Determine best model by retrieval accuracy
+  // Determine best model by MRR (fallback to retrieval_accuracy)
+  const getScore = (r: ModelResult) => r.mrr ?? r.retrieval_accuracy;
+
   const bestModel =
     valid.length > 0
       ? valid.reduce((a, b) =>
-          a.retrieval_accuracy > b.retrieval_accuracy ? a : b,
+          getScore(a) > getScore(b) ? a : b,
         )
       : null;
 
-  // Sort by retrieval accuracy descending
+  // Sort by score descending
   const sorted = [...valid].sort(
-    (a, b) => b.retrieval_accuracy - a.retrieval_accuracy,
+    (a, b) => getScore(b) - getScore(a),
   );
   const failed = results.filter((r) => r.error);
 
@@ -479,14 +497,14 @@ const Results = () => {
                 color: "text-primary",
               },
               {
-                label: "Best Retrieval",
-                value: `${(sorted[0]?.retrieval_accuracy * 100).toFixed(1)}%`,
+                label: sorted[0]?.mrr !== undefined ? "Best MRR" : "Best Retrieval",
+                value: sorted[0]?.mrr !== undefined ? sorted[0].mrr.toFixed(3) : `${((sorted[0]?.retrieval_accuracy ?? 0) * 100).toFixed(1)}%`,
                 icon: Target,
                 color: "text-accent",
               },
               {
-                label: "Best Relevance",
-                value: `${sorted[0]?.relevance_score ?? "—"}/10`,
+                label: "Best Recall@5",
+                value: sorted[0]?.recall_at_5 !== undefined ? `${(sorted[0].recall_at_5 * 100).toFixed(1)}%` : "—",
                 icon: BarChart3,
                 color: "text-primary",
               },
@@ -559,7 +577,7 @@ const Results = () => {
               <Card className="p-6 shadow-elevation">
                 <h3 className="text-base font-bold mb-4 flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-primary" />
-                  Retrieval Accuracy Comparison
+                  Performance Comparison (MRR)
                 </h3>
                 <ComparisonChart results={results} />
               </Card>
@@ -577,7 +595,8 @@ const Results = () => {
                     <tr className="border-b border-border">
                       <th className="text-left py-2 pr-3">#</th>
                       <th className="text-left py-2 pr-3">Model</th>
-                      <th className="text-center py-2 pr-3">Acc.</th>
+                      <th className="text-center py-2 pr-3">MRR</th>
+                      <th className="text-center py-2 pr-3">R@5</th>
                       <th className="text-center py-2">Rel.</th>
                     </tr>
                   </thead>
@@ -595,8 +614,11 @@ const Results = () => {
                         <td className="py-2 pr-3 font-mono truncate max-w-[80px]">
                           {r.model.split("/").pop() ?? r.model}
                         </td>
-                        <td className="py-2 pr-3 text-center">
-                          {(r.retrieval_accuracy * 100).toFixed(1)}%
+                        <td className="py-2 pr-3 text-center text-[10px] md:text-xs">
+                          {r.mrr !== undefined ? r.mrr.toFixed(3) : `${(r.retrieval_accuracy * 100).toFixed(1)}%`}
+                        </td>
+                        <td className="py-2 pr-3 text-center text-[10px] md:text-xs text-muted-foreground">
+                          {r.recall_at_5 !== undefined ? `${(r.recall_at_5 * 100).toFixed(1)}%` : "—"}
                         </td>
                         <td className="py-2 text-center">{r.relevance_score}/10</td>
                       </tr>
