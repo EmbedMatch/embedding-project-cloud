@@ -25,6 +25,7 @@ dev = [
     "deptry>=0.24.0",
     "diff-cover>=9.0.0",
     "httpx>=0.28.0",
+    "requests>=2.32.0",
 ]
 
 [build-system]

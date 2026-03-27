@@ -7,7 +7,8 @@ export async function uploadFile(file: File): Promise<{ blob_name: string; url: 
   const res = await fetch(`${API_URL}/uploads/`, { method: "POST", body: formData });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Upload failed");
+    const detail = typeof err.detail === "string" ? err.detail : err.detail?.detail || JSON.stringify(err.detail);
+    throw new Error(detail || "Upload failed");
   }
   return res.json();
 }
@@ -26,36 +27,67 @@ export async function createExperiment(data: {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Failed to create experiment");
+    const detail = typeof err.detail === "string" ? err.detail : err.detail?.detail || JSON.stringify(err.detail);
+    throw new Error(detail || "Failed to create experiment");
   }
   return res.json();
 }
 
 export interface ExperimentResult {
-    id: string;
-    name: string;
-    status: string;
-    blob_name: string;
-    dataset_type: string;
-    created_at: string;
-    models?: string[];
-    results:
-        | {
-              model: string;
-              num_texts: number;
-              dimensions: number;
-              latency_ms: number;
-              relevance_score: number;
-              retrieval_accuracy: number;
-              judge_scores: {
-                  query: string;
-                  document_preview: string;
-                  score: number;
-                  reason: string;
-              }[];
-              error?: string;
-          }[]
-        | null;
+  id: string;
+  name: string;
+  status: string;
+  blob_name: string;
+  dataset_type: string;
+  created_at: string;
+  models?: string[];
+  results:
+  | {
+    model: string;
+    num_texts: number;
+    dimensions: number;
+    latency_ms: number;
+    relevance_score: number;
+    retrieval_accuracy: number;
+    mrr?: number;
+    recall_at_1?: number;
+    recall_at_5?: number;
+    recall_at_10?: number;
+    pool_size?: number;
+    eval_size?: number;
+    judge_scores: {
+      query: string;
+      document_preview: string;
+      score: number;
+      reason: string;
+    }[];
+    error?: string;
+  }[]
+  | null;
+}
+
+export interface ExperimentSummary {
+  id: string;
+  status: string;
+  ranked_models: {
+    model: string;
+    num_texts?: number;
+    dimensions?: number;
+    latency_ms?: number;
+    relevance_score?: number;
+    retrieval_accuracy?: number;
+    composite_score: number;
+    rank: number;
+  }[];
+  recommendation: {
+    model: string;
+    composite_score: number;
+    relevance_score?: number;
+    retrieval_accuracy?: number;
+    latency_ms?: number;
+    reason: string;
+  } | null;
+  message?: string;
 }
 
 export async function getExperiment(id: string): Promise<ExperimentResult> {
@@ -64,6 +96,31 @@ export async function getExperiment(id: string): Promise<ExperimentResult> {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
     throw new Error(err.detail || "Experiment not found");
   }
+  return res.json();
+}
+
+export async function getExperimentSummary(id: string): Promise<ExperimentSummary> {
+  const res = await fetch(`${API_URL}/experiments/${id}/summary`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || "Failed to load summary");
+  }
+  return res.json();
+}
+
+export interface ExperimentProgress {
+  id: string;
+  status: string;
+  progress_percent: number;
+  completed_models: number;
+  total_models: number;
+  per_model: { model: string; status: string }[];
+  updated_at: string;
+}
+
+export async function getExperimentProgress(id: string): Promise<ExperimentProgress> {
+  const res = await fetch(`${API_URL}/experiments/${id}/progress`);
+  if (!res.ok) throw new Error("Failed to get progress");
   return res.json();
 }
 

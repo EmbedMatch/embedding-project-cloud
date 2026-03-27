@@ -11,6 +11,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      HAS_AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS != '' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -53,3 +55,46 @@ jobs:
             -u "${KUDU_CREDS}" \
             --data-binary @backend.zip \
             -H "Content-Type: application/zip"
+
+      # ── Integration tests ────────────────────────────────────────────────────
+      # Requires AZURE_CREDENTIALS secret (service principal JSON).
+      # Create with: az ad sp create-for-rbac --name embedmatch-github --role contributor
+      #              --scopes /subscriptions/<id>/resourceGroups/EmbedMatch --json-auth
+      # If absent, the IP whitelist steps are skipped and tests run against
+      # whatever access restrictions are currently in place.
+
+      - name: Get runner IP
+        id: runner_ip
+        run: echo "ip=$(curl -sf https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+      - name: Azure login
+        if: env.HAS_AZURE_CREDENTIALS == 'true'
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Whitelist runner IP on App Service
+        if: env.HAS_AZURE_CREDENTIALS == 'true'
+        run: |
+          az webapp config access-restriction add \
+            --resource-group EmbedMatch \
+            --name embed-match-web \
+            --action Allow \
+            --ip-address ${{ steps.runner_ip.outputs.ip }}/32 \
+            --priority 200 \
+            --rule-name github-runner
+
+      - name: Run integration tests
+        working-directory: backend
+        continue-on-error: true
+        env:
+          INTEGRATION_BASE_URL: https://embed-match-web-hfasa8feb5bxf3hw.switzerlandnorth-01.azurewebsites.net
+        run: uv run pytest -m integration tests/test_integration.py -v
+
+      - name: Remove runner IP restriction
+        if: always() && env.HAS_AZURE_CREDENTIALS == 'true'
+        run: |
+          az webapp config access-restriction remove \
+            --resource-group EmbedMatch \
+            --name embed-match-web \
+            --rule-name github-runner
