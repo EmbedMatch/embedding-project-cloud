@@ -197,6 +197,7 @@ def embed_batch_fastembed(texts: list[str], model_name: str) -> tuple[np.ndarray
     embeddings = list(model.embed(texts))
 
     import tiktoken
+
     encoding = tiktoken.get_encoding("cl100k_base")
     total_tokens = sum(len(encoding.encode(t, disallowed_special=())) for t in texts)
 
@@ -247,7 +248,7 @@ def run_benchmark(
         query_embeddings, q_tokens = embed_batch_fastembed(queries, model_name)
     else:
         query_embeddings, q_tokens = embed_batch(client, queries)
-    
+
     total_tokens += q_tokens
 
     # Apply pricing
