@@ -134,6 +134,7 @@ def test_run_benchmark_batching():
     def fake_embed(model, input):
         resp = MagicMock()
         resp.data = [MagicMock(embedding=[0.1, 0.2]) for _ in input]
+        resp.usage = MagicMock(total_tokens=10)
         return resp
 
     mock_client.embeddings.create.side_effect = fake_embed
