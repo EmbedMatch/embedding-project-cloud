@@ -137,17 +137,20 @@ def extract_texts(rows: list[dict[str, Any]]) -> list[str]:
 
 def embed_batch(
     client: AzureOpenAI, texts: list[str], model: str = "", batch_size: int = 16
-) -> np.ndarray:
-    """Embed texts in batches, returns a (N, D) numpy array."""
+) -> tuple[np.ndarray, int]:
+    """Embed texts in batches, returns a (N, D) numpy array and total token count."""
     all_embeddings: list[list[float]] = []
+    total_tokens = 0
     for i in range(0, len(texts), batch_size):
         batch = [t[:8000] for t in texts[i : i + batch_size]]
         resp = client.embeddings.create(model=model or CFG.embedding_model, input=batch)
         all_embeddings.extend(d.embedding for d in resp.data)
-    return np.array(all_embeddings)
+        if hasattr(resp, "usage") and resp.usage:
+            total_tokens += getattr(resp.usage, "total_tokens", 0)
+    return np.array(all_embeddings), total_tokens
 
 
-def embed_batch_fastembed(texts: list[str], model_name: str) -> np.ndarray:
+def embed_batch_fastembed(texts: list[str], model_name: str) -> tuple[np.ndarray, int]:
     """Embed texts using opensource model via fastembed (ONIX Runtime)"""
     fastembed_id = FASTEMBED_MODELS.get(model_name)
     if not fastembed_id:
@@ -155,7 +158,11 @@ def embed_batch_fastembed(texts: list[str], model_name: str) -> np.ndarray:
     model = TextEmbedding(model_name=fastembed_id)
     embeddings = list(model.embed(texts))
 
-    return np.array(embeddings)
+    import tiktoken
+    encoding = tiktoken.get_encoding("cl100k_base")
+    total_tokens = sum(len(encoding.encode(t, disallowed_special=())) for t in texts)
+
+    return np.array(embeddings), total_tokens
 
 
 def run_benchmark(
@@ -168,12 +175,16 @@ def run_benchmark(
     """Embed texts with the specified model and compute metrics."""
     model_name = model_name or CFG.embedding_model
 
+    total_tokens = 0
+
     # Step 1: Embed texts
     start = datetime.now(UTC)
     if model_name in AZURE_MODELS:
-        embeddings = embed_batch(client, texts, model=model_name)
+        embeddings, tokens = embed_batch(client, texts, model=model_name)
+        total_tokens += tokens
     elif model_name in FASTEMBED_MODELS:
-        embeddings = embed_batch_fastembed(texts, model_name)
+        embeddings, tokens = embed_batch_fastembed(texts, model_name)
+        total_tokens += tokens
     else:
         raise ValueError(f"Unknown model: {model_name}")
     latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
@@ -181,7 +192,16 @@ def run_benchmark(
     n_texts, n_dims = embeddings.shape
 
     # Step 2: Score retrieval with THIS model's embeddings
-    retrieval = score_retrieval(client, texts, queries, model_name=model_name)
+    retrieval, ret_tokens = score_retrieval(client, texts, queries, model_name=model_name)
+    total_tokens += ret_tokens
+
+    # Apply pricing
+    if model_name == "text-embedding-ada-002":
+        cost_usd = (total_tokens / 1_000_000) * 0.10
+    elif model_name == "text-embedding-3-large":
+        cost_usd = (total_tokens / 1_000_000) * 0.13
+    else:
+        cost_usd = 0.0
 
     # Step 3: Compute average relevance from pre-computed judge scores
     avg_relevance = round(sum(s["score"] for s in judge_scores) / len(judge_scores), 2)
@@ -194,6 +214,8 @@ def run_benchmark(
         "relevance_score": avg_relevance,
         "retrieval_accuracy": retrieval["retrieval_accuracy"],
         "judge_scores": judge_scores,
+        "total_tokens": total_tokens,
+        "cost_usd": float(round(cost_usd, 6)),
     }
 
 
@@ -325,20 +347,24 @@ def score_retrieval(
     texts: list[str],
     queries: list[str],
     model_name: str = "",
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], int]:
     """Embed queries + texts with the specified model, compute retrieval accuracy via cosine similarity."""
     model_name = model_name or CFG.embedding_model
+    total_tokens = 0
 
     # Embed both sets using the SAME model being benchmarked
     if model_name in AZURE_MODELS:
-        text_embeddings = embed_batch(client, texts, model=model_name)
-        query_embeddings = embed_batch(client, queries, model=model_name)
+        text_embeddings, t_tokens = embed_batch(client, texts, model=model_name)
+        query_embeddings, q_tokens = embed_batch(client, queries, model=model_name)
+        total_tokens += t_tokens + q_tokens
     elif model_name in FASTEMBED_MODELS:
-        text_embeddings = embed_batch_fastembed(texts, model_name)
-        query_embeddings = embed_batch_fastembed(queries, model_name)
+        text_embeddings, t_tokens = embed_batch_fastembed(texts, model_name)
+        query_embeddings, q_tokens = embed_batch_fastembed(queries, model_name)
+        total_tokens += t_tokens + q_tokens
     else:
-        text_embeddings = embed_batch(client, texts)
-        query_embeddings = embed_batch(client, queries)
+        text_embeddings, t_tokens = embed_batch(client, texts)
+        query_embeddings, q_tokens = embed_batch(client, queries)
+        total_tokens += t_tokens + q_tokens
 
     # Normalize for cosine similarity
     text_norms = text_embeddings / np.linalg.norm(
@@ -360,7 +386,7 @@ def score_retrieval(
         "retrieval_accuracy": round(hits / len(texts), 4),
         "hits": hits,
         "total": len(texts),
-    }
+    }, total_tokens
 
 
 def score_relevance_llm(
