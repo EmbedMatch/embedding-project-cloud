@@ -159,12 +159,12 @@ const Upload = () => {
                 </p>
               </>
             ) : (
-              <div className="flex items-center justify-center gap-4">
-                <CheckCircle2 className="w-12 h-12 text-accent" />
-                <div className="text-left">
-                  <div className="flex items-center gap-2 mb-1">
-                    <FileText className="w-5 h-5 text-primary" />
-                    <span className="font-semibold text-lg">{uploadedFile.name}</span>
+              <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+                <CheckCircle2 className="w-12 h-12 text-accent shrink-0" />
+                <div className="text-center md:text-left min-w-0 max-w-full">
+                  <div className="flex flex-col md:flex-row items-center gap-2 mb-1">
+                    <FileText className="w-5 h-5 text-primary shrink-0 hidden md:block" />
+                    <span className="font-semibold text-lg truncate w-full" title={uploadedFile.name}>{uploadedFile.name}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {(uploadedFile.size / 1024).toFixed(2)} KB

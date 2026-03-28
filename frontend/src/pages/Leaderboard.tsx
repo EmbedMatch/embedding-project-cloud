@@ -216,7 +216,7 @@ const Leaderboard = () => {
         {/* Dataset status card */}
         {hasDataset ? (
           <Card className="p-4 mb-6 shadow-elevation bg-accent/5 border-accent/20">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-accent" />
                 <FileText className="w-4 h-4 text-muted-foreground" />
@@ -257,7 +257,7 @@ const Leaderboard = () => {
           </Card>
         ) : (
           <Card className="p-5 mb-6 shadow-elevation border-dashed border-2 border-border hover:border-primary/30 transition-colors">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <Upload className="w-6 h-6 text-muted-foreground" />
                 <div>
@@ -300,7 +300,7 @@ const Leaderboard = () => {
 
         {/* Active constraints summary */}
         <Card className="p-4 mb-6 shadow-elevation border-primary/20 bg-primary/5">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
             <div>
               <div className="text-sm text-muted-foreground mb-1">
                 Active constraints
@@ -310,7 +310,7 @@ const Leaderboard = () => {
                 /M · Performance ≥ {constraints.minPerformance}%
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <div className="text-sm text-muted-foreground mb-1">
                 Constraint matches
               </div>
@@ -373,7 +373,7 @@ const Leaderboard = () => {
         {/* Selected Models Banner — benchmark action gated on dataset */}
         {selectedModels.length > 0 && (
           <Card className="p-4 mb-6 shadow-elevation bg-primary/5 border-primary/20">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <CheckCircle2 className="w-5 h-5 text-primary" />
                 <span className="font-medium">
@@ -421,9 +421,9 @@ const Leaderboard = () => {
                     </div>
 
                     {/* Model Info */}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-xl font-semibold">{model.name}</h3>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-3 mb-2 min-w-0">
+                        <h3 className="text-xl font-semibold truncate" title={model.name}>{model.name}</h3>
                         <Badge variant="secondary">{model.organization}</Badge>
                         {recommendedIds.has(model.id) && (
                           <Badge className="bg-accent text-accent-foreground">

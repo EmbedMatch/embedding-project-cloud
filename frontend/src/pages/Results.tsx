@@ -241,7 +241,7 @@ function ModelCard({
             {isBest ? <Trophy className="w-4 h-4" /> : `#${rank}`}
           </div>
           <div className="min-w-0">
-            <div className="font-bold truncate">{r.model}</div>
+            <div className="font-bold truncate" title={r.model}>{r.model}</div>
             {isBest && (
               <Badge className="mt-1 bg-accent/20 text-accent border-accent/30 text-xs">
                 Best Model
@@ -323,8 +323,8 @@ function ModelCard({
           </div>
           {r.judge_scores.slice(0, 5).map((js, i) => (
             <div key={i} className="text-xs p-3 bg-muted/30 rounded-lg">
-              <div className="flex justify-between mb-1">
-                <span className="font-medium truncate mr-2">{js.query}</span>
+              <div className="flex items-start justify-between mb-1 gap-2">
+                <span className="font-medium truncate" title={js.query}>{js.query}</span>
                 <Badge
                   className={`shrink-0 text-xs ${
                     js.score >= 8
@@ -347,28 +347,30 @@ function ModelCard({
 }
 
 // ─── Visual comparison chart (pure CSS) ──────────────────────────────────────
-function ComparisonChart({ results }: { results: ModelResult[] }) {
+function ComparisonChart({ results, compositeByModel }: { results: ModelResult[], compositeByModel: Map<string, number> }) {
   const valid = results.filter((r) => !r.error);
-  const getScore = (r: ModelResult) => r.mrr ?? r.retrieval_accuracy;
-  const maxScore = Math.max(...valid.map(getScore));
+  const getDisplayScore = (r: ModelResult) => compositeByModel.get(r.model) ?? (r.mrr ?? r.retrieval_accuracy);
+  const maxScore = Math.max(...valid.map(getDisplayScore), 1);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {valid.map((r, i) => {
-        const score = getScore(r);
-        const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
+        const score = getDisplayScore(r);
+        const hasComposite = compositeByModel.has(r.model);
+        const pct = (score / (hasComposite ? 10 : maxScore)) * 100;
+
         return (
-          <div key={i} className="flex items-center gap-3">
-            <div className="w-36 text-xs font-medium truncate shrink-0 text-right">
+          <div key={i} className="flex items-center gap-4">
+            <div className="w-40 text-xs font-semibold truncate shrink-0 text-right">
               {r.model.split("/").pop() ?? r.model}
             </div>
-            <div className="flex-1 h-6 bg-muted rounded overflow-hidden relative">
+            <div className="flex-1 h-8 bg-muted rounded-lg overflow-hidden relative shadow-inner">
               <div
-                className="h-full bg-gradient-to-r from-primary to-accent rounded transition-all duration-700 ease-out flex items-center justify-end pr-2"
+                className="h-full bg-gradient-to-r from-primary to-accent rounded-lg transition-all duration-1000 ease-out flex items-center justify-end pr-3"
                 style={{ width: `${pct}%` }}
               >
-                <span className="text-xs font-bold text-white">
-                  {r.mrr !== undefined ? score.toFixed(3) : `${(score * 100).toFixed(1)}%`}
+                <span className="text-sm font-bold text-white drop-shadow-sm">
+                  {hasComposite ? score.toFixed(2) : (r.mrr !== undefined ? score.toFixed(3) : `${(score * 100).toFixed(1)}%`)}
                 </span>
               </div>
             </div>
@@ -656,9 +658,9 @@ const Results = () => {
               <Card className="p-6 shadow-elevation">
                 <h3 className="text-base font-bold mb-4 flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-primary" />
-                  Performance Comparison
+                  {summary ? "Overall Performance (Composite Score / 10)" : "Performance Comparison"}
                 </h3>
-                <ComparisonChart results={results} />
+                <ComparisonChart results={results} compositeByModel={compositeByModel} />
               </Card>
             )}
 

@@ -175,17 +175,20 @@ def extract_texts(rows: list[dict[str, Any]]) -> list[str]:
 
 def embed_batch(
     client: AzureOpenAI, texts: list[str], model: str = "", batch_size: int = 16
-) -> np.ndarray:
-    """Embed texts in batches, returns a (N, D) numpy array."""
+) -> tuple[np.ndarray, int]:
+    """Embed texts in batches, returns a (N, D) numpy array and total token count."""
     all_embeddings: list[list[float]] = []
+    total_tokens = 0
     for i in range(0, len(texts), batch_size):
         batch = [t[:8000] for t in texts[i : i + batch_size]]
         resp = client.embeddings.create(model=model or CFG.embedding_model, input=batch)
         all_embeddings.extend(d.embedding for d in resp.data)
-    return np.array(all_embeddings)
+        if hasattr(resp, "usage") and resp.usage:
+            total_tokens += getattr(resp.usage, "total_tokens", 0)
+    return np.array(all_embeddings), total_tokens
 
 
-def embed_batch_fastembed(texts: list[str], model_name: str) -> np.ndarray:
+def embed_batch_fastembed(texts: list[str], model_name: str) -> tuple[np.ndarray, int]:
     """Embed texts using opensource model via fastembed (ONIX Runtime)"""
     fastembed_id = FASTEMBED_MODELS.get(model_name)
     if not fastembed_id:
@@ -193,7 +196,12 @@ def embed_batch_fastembed(texts: list[str], model_name: str) -> np.ndarray:
     model = TextEmbedding(model_name=fastembed_id)
     embeddings = list(model.embed(texts))
 
-    return np.array(embeddings)
+    import tiktoken
+
+    encoding = tiktoken.get_encoding("cl100k_base")
+    total_tokens = sum(len(encoding.encode(t, disallowed_special=())) for t in texts)
+
+    return np.array(embeddings), total_tokens
 
 
 def run_benchmark(
@@ -217,12 +225,16 @@ def run_benchmark(
     """
     model_name = model_name or CFG.embedding_model
 
+    total_tokens = 0
+
     # Step 1: Embed the FULL pool
     start = datetime.now(UTC)
     if model_name in AZURE_MODELS:
-        pool_embeddings = embed_batch(client, pool_texts, model=model_name)
+        pool_embeddings, tokens = embed_batch(client, pool_texts, model=model_name)
+        total_tokens += tokens
     elif model_name in FASTEMBED_MODELS:
-        pool_embeddings = embed_batch_fastembed(pool_texts, model_name)
+        pool_embeddings, tokens = embed_batch_fastembed(pool_texts, model_name)
+        total_tokens += tokens
     else:
         raise ValueError(f"Unknown model: {model_name}")
     latency_ms = (datetime.now(UTC) - start).total_seconds() * 1000
@@ -231,11 +243,21 @@ def run_benchmark(
 
     # Step 2: Embed the queries with the SAME model
     if model_name in AZURE_MODELS:
-        query_embeddings = embed_batch(client, queries, model=model_name)
+        query_embeddings, q_tokens = embed_batch(client, queries, model=model_name)
     elif model_name in FASTEMBED_MODELS:
-        query_embeddings = embed_batch_fastembed(queries, model_name)
+        query_embeddings, q_tokens = embed_batch_fastembed(queries, model_name)
     else:
-        query_embeddings = embed_batch(client, queries)
+        query_embeddings, q_tokens = embed_batch(client, queries)
+
+    total_tokens += q_tokens
+
+    # Apply pricing
+    if model_name == "text-embedding-ada-002":
+        cost_usd = (total_tokens / 1_000_000) * 0.10
+    elif model_name == "text-embedding-3-large":
+        cost_usd = (total_tokens / 1_000_000) * 0.13
+    else:
+        cost_usd = 0.0
 
     # Step 3: Compute retrieval metrics (MRR, Recall@K)
     correct_indices = np.array(eval_indices)
@@ -265,6 +287,8 @@ def run_benchmark(
         "pool_size": n_pool,
         "eval_size": len(queries),
         "judge_scores": judge_scores,
+        "total_tokens": total_tokens,
+        "cost_usd": float(round(cost_usd, 6)),
     }
 
 

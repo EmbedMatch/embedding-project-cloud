@@ -122,6 +122,8 @@ def test_run_benchmark_returns_expected_fields(monkeypatch):
     assert result["pool_size"] == 3
     assert result["eval_size"] == 2
     assert result["judge_scores"] == fake_judge_scores
+    assert "total_tokens" in result
+    assert "cost_usd" in result
 
 
 @pytest.mark.unit
@@ -132,6 +134,7 @@ def test_run_benchmark_batching():
     def fake_embed(model, input):
         resp = MagicMock()
         resp.data = [MagicMock(embedding=[0.1, 0.2]) for _ in input]
+        resp.usage = MagicMock(total_tokens=10)
         return resp
 
     mock_client.embeddings.create.side_effect = fake_embed
@@ -139,8 +142,9 @@ def test_run_benchmark_batching():
     # Patch batch_size by calling embed_batch directly
     from function_app import embed_batch
 
-    result = embed_batch(mock_client, ["a", "b", "c"], batch_size=2)
+    result, tokens = embed_batch(mock_client, ["a", "b", "c"], batch_size=2)
     assert result.shape == (3, 2)
+    assert tokens >= 0
     assert mock_client.embeddings.create.call_count == 2
 
 
