@@ -241,7 +241,7 @@ function ModelCard({
             {isBest ? <Trophy className="w-4 h-4" /> : `#${rank}`}
           </div>
           <div className="min-w-0">
-            <div className="font-bold truncate">{r.model}</div>
+            <div className="font-bold truncate" title={r.model}>{r.model}</div>
             {isBest && (
               <Badge className="mt-1 bg-accent/20 text-accent border-accent/30 text-xs">
                 Best Model
@@ -323,8 +323,8 @@ function ModelCard({
           </div>
           {r.judge_scores.slice(0, 5).map((js, i) => (
             <div key={i} className="text-xs p-3 bg-muted/30 rounded-lg">
-              <div className="flex justify-between mb-1">
-                <span className="font-medium truncate mr-2">{js.query}</span>
+              <div className="flex items-start justify-between mb-1 gap-2">
+                <span className="font-medium truncate" title={js.query}>{js.query}</span>
                 <Badge
                   className={`shrink-0 text-xs ${
                     js.score >= 8

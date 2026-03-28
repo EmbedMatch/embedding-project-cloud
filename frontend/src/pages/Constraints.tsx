@@ -96,17 +96,19 @@ const Constraints = () => {
 
         {/* Model Size Constraint */}
         <Card className="p-8 mb-6 shadow-elevation">
-          <div className="flex items-start gap-4 mb-6">
-            <div className="p-3 rounded-lg bg-primary/10">
-              <HardDrive className="w-6 h-6 text-primary" />
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
+            <div className="flex items-start gap-4 flex-1">
+              <div className="p-3 rounded-lg bg-primary/10 shrink-0">
+                <HardDrive className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold mb-2">Maximum Model Size</h2>
+                <p className="text-muted-foreground">
+                  Limit model size based on your deployment constraints
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold mb-2">Maximum Model Size</h2>
-              <p className="text-muted-foreground">
-                Limit model size based on your deployment constraints
-              </p>
-            </div>
-            <Badge variant="secondary" className="text-lg px-4 py-2">
+            <Badge variant="secondary" className="text-lg px-4 py-2 self-start">
               {maxSize[0]} MB
             </Badge>
           </div>
@@ -149,17 +151,19 @@ const Constraints = () => {
 
         {/* Cost Constraint */}
         <Card className="p-8 mb-6 shadow-elevation">
-          <div className="flex items-start gap-4 mb-6">
-            <div className="p-3 rounded-lg bg-accent/10">
-              <DollarSign className="w-6 h-6 text-accent" />
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
+            <div className="flex items-start gap-4 flex-1">
+              <div className="p-3 rounded-lg bg-accent/10 shrink-0">
+                <DollarSign className="w-6 h-6 text-accent" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold mb-2">Maximum Cost</h2>
+                <p className="text-muted-foreground">
+                  Set your budget for inference costs per million tokens
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold mb-2">Maximum Cost</h2>
-              <p className="text-muted-foreground">
-                Set your budget for inference costs per million tokens
-              </p>
-            </div>
-            <Badge variant="secondary" className="text-lg px-4 py-2">
+            <Badge variant="secondary" className="text-lg px-4 py-2 self-start">
               ${maxCost[0]}/M
             </Badge>
           </div>
@@ -194,17 +198,19 @@ const Constraints = () => {
 
         {/* Performance Constraint */}
         <Card className="p-8 mb-6 shadow-elevation">
-          <div className="flex items-start gap-4 mb-6">
-            <div className="p-3 rounded-lg bg-primary/10">
-              <Zap className="w-6 h-6 text-primary" />
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
+            <div className="flex items-start gap-4 flex-1">
+              <div className="p-3 rounded-lg bg-primary/10 shrink-0">
+                <Zap className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-semibold mb-2">Minimum Performance</h2>
+                <p className="text-muted-foreground">
+                  Set minimum acceptable MTEB score threshold
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold mb-2">Minimum Performance</h2>
-              <p className="text-muted-foreground">
-                Set minimum acceptable MTEB score threshold
-              </p>
-            </div>
-            <Badge variant="secondary" className="text-lg px-4 py-2">
+            <Badge variant="secondary" className="text-lg px-4 py-2 self-start">
               {minPerformance[0]}%
             </Badge>
           </div>
@@ -246,7 +252,7 @@ const Constraints = () => {
 
         {/* Summary */}
         <Card className="p-8 mb-6 shadow-elevation bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div>
               <div className="text-sm text-muted-foreground mb-1">Matching Models</div>
               <div className="text-4xl font-bold text-primary">{matchingModels}</div>
@@ -254,7 +260,7 @@ const Constraints = () => {
                 models meet your constraints from MTEB leaderboard
               </p>
             </div>
-            <div className="text-right">
+            <div className="text-left sm:text-right">
               <div className="text-sm text-muted-foreground mb-2">Your Constraints</div>
               <div className="space-y-1 text-sm">
                 <div>Size: ≤ {maxSize[0]} MB</div>

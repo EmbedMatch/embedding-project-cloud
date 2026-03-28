@@ -307,30 +307,34 @@ const Dashboard = () => {
 
                     {/* Best model summary */}
                     {best && (
-                      <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Trophy className="w-4 h-4 text-accent" />
-                          <div>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-muted/30 rounded-lg gap-4">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <Trophy className="w-5 h-5 text-accent shrink-0" />
+                          <div className="min-w-0">
                             <div className="text-xs text-muted-foreground">
                               Best Model
                             </div>
-                            <div className="text-sm font-semibold">{best.model}</div>
+                            <div className="text-sm font-semibold truncate" title={best.model}>
+                              {best.model.split("/").pop() ?? best.model}
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-xs text-muted-foreground flex items-center gap-1 justify-end">
-                            <Target className="w-3 h-3" /> Retrieval
+                        <div className="flex items-center gap-6">
+                          <div className="text-left sm:text-right">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1 sm:justify-end">
+                              <Target className="w-3 h-3" /> Retrieval
+                            </div>
+                            <div className="text-xl font-bold text-primary">
+                              {topAccuracy}%
+                            </div>
                           </div>
-                          <div className="text-xl font-bold text-primary">
-                            {topAccuracy}%
-                          </div>
-                        </div>
-                        <div className="text-right ml-4">
-                          <div className="text-xs text-muted-foreground flex items-center gap-1 justify-end">
-                            <Zap className="w-3 h-3" /> Latency
-                          </div>
-                          <div className="text-xl font-bold text-accent">
-                            {best.latency_ms?.toFixed(0)} ms
+                          <div className="text-left sm:text-right">
+                            <div className="text-xs text-muted-foreground flex items-center gap-1 sm:justify-end">
+                              <Zap className="w-3 h-3" /> Latency
+                            </div>
+                            <div className="text-xl font-bold text-accent">
+                              {best.latency_ms?.toFixed(0)} ms
+                            </div>
                           </div>
                         </div>
                       </div>
