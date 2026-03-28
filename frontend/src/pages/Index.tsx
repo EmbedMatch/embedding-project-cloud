@@ -19,7 +19,7 @@ const Index = () => {
             <span className="text-lg font-bold">EmbedMatch</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © 2025 EmbedMatch. Powered by MTEB and Azure.
+            © 2026 EmbedMatch.
           </p>
         </div>
       </footer>

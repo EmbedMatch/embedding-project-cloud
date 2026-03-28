@@ -5,7 +5,7 @@ const Features = () => {
     {
       icon: <Brain className="w-8 h-8" />,
       title: "MTEB Integration",
-      description: "Direct access to the most comprehensive embedding model leaderboard with 150+ models evaluated."
+      description: "Direct access to the most comprehensive embedding model leaderboard with the most relevant models evaluated."
     },
     {
       icon: <DollarSign className="w-8 h-8" />,
@@ -15,7 +15,7 @@ const Features = () => {
     {
       icon: <Gauge className="w-8 h-8" />,
       title: "Performance Metrics",
-      description: "Detailed benchmarks across retrieval accuracy, classification F1, and embedding quality scores."
+      description: "Detailed benchmarks across retrieval accuracy, classification F1 and embedding quality scores."
     },
     {
       icon: <Shield className="w-8 h-8" />,

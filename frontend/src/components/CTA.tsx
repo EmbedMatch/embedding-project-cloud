@@ -11,16 +11,13 @@ const CTA = () => {
           Ready to Find Your Perfect Model?
         </h2>
         <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
-          Stop settling for generic solutions. Get model recommendations tailored to your data, constraints, and use case.
+          Stop settling for generic solutions. Get model recommendations tailored to your data, constraints and use case.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Button size="lg" variant="hero" className="text-lg px-8 py-6" onClick={() => window.location.href = '/upload'}>
             Start Free Benchmark
             <ArrowRight className="ml-2" />
-          </Button>
-          <Button size="lg" variant="outline" className="text-lg px-8 py-6">
-            View Documentation
           </Button>
         </div>
 
