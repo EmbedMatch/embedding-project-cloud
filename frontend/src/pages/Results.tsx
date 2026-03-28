@@ -358,7 +358,7 @@ function ComparisonChart({ results, compositeByModel }: { results: ModelResult[]
         const score = getDisplayScore(r);
         const hasComposite = compositeByModel.has(r.model);
         const pct = (score / (hasComposite ? 10 : maxScore)) * 100;
-        
+
         return (
           <div key={i} className="flex items-center gap-4">
             <div className="w-40 text-xs font-semibold truncate shrink-0 text-right">
