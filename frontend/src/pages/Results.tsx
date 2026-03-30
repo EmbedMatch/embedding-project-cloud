@@ -217,6 +217,7 @@ function ModelCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const relevancePct = (r.relevance_score / 10) * 100;
+  const isMrrTopMetric = r.retrieval_accuracy === undefined && r.mrr !== undefined;
   const topMetric = r.retrieval_accuracy !== undefined
     ? {
         label: "Retrieval Accuracy",
@@ -231,7 +232,7 @@ function ModelCard({
       }
     : null;
   const secondaryMetrics = [
-    ...(r.mrr !== undefined
+    ...(r.mrr !== undefined && !isMrrTopMetric
       ? [{
           label: "Mean Reciprocal Rank (MRR)",
           value: r.mrr.toFixed(3),
