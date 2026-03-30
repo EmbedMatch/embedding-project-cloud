@@ -41,12 +41,23 @@ pnpm dev
 Backend: `http://localhost:8000`
 Frontend: `http://localhost:5173`
 
+```
+bash
+# if you want to run everything automatically
+cd infra
+docker-compose up --build
+```
+
 ## Structure
 
 ```
 backend/          # Python 3.12, FastAPI, Docker
 frontend/         # React, TypeScript, Vite, pnpm
-documentation/    # Project specs & diagrams
+functions/        # Azure Functions
+docs/             # Project specs & diagrams
+infra/            # Docker & Docker Compose
+scripts/          # Utility scripts
+
 ```
 
 ## Stack

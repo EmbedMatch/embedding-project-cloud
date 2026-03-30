@@ -217,6 +217,44 @@ function ModelCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const relevancePct = (r.relevance_score / 10) * 100;
+  const isMrrTopMetric = r.retrieval_accuracy === undefined && r.mrr !== undefined;
+  const topMetric = r.retrieval_accuracy !== undefined
+    ? {
+        label: "Retrieval Accuracy",
+        value: `${(r.retrieval_accuracy * 100).toFixed(1)}%`,
+        score: r.retrieval_accuracy * 100,
+      }
+    : r.mrr !== undefined
+    ? {
+        label: "Mean Reciprocal Rank (MRR)",
+        value: r.mrr.toFixed(3),
+        score: r.mrr * 100,
+      }
+    : null;
+  const secondaryMetrics = [
+    ...(r.mrr !== undefined && !isMrrTopMetric
+      ? [{
+          label: "Mean Reciprocal Rank (MRR)",
+          value: r.mrr.toFixed(3),
+          score: r.mrr * 100,
+          color: "primary" as const,
+        }]
+      : []),
+    ...(r.recall_at_5 !== undefined
+      ? [{
+          label: "Recall@5",
+          value: `${(r.recall_at_5 * 100).toFixed(1)}%`,
+          score: r.recall_at_5 * 100,
+          color: "accent" as const,
+        }]
+      : []),
+    {
+      label: "Relevance",
+      value: `${r.relevance_score}/10`,
+      score: relevancePct,
+      color: "warning" as const,
+    },
+  ];
 
   return (
     <div
@@ -264,42 +302,31 @@ function ModelCard({
 
       {/* Score rows */}
       <div className="px-5 pb-5 space-y-4">
-        {r.mrr !== undefined && (
+        {topMetric && (
           <div>
             <div className="flex justify-between text-xs text-muted-foreground mb-1">
               <span className="flex items-center gap-1">
-                <Target className="w-3 h-3" /> Mean Reciprocal Rank (MRR)
+                <Target className="w-3 h-3" /> {topMetric.label}
               </span>
               <span className="font-bold text-foreground">
-                {r.mrr.toFixed(3)}
+                {topMetric.value}
               </span>
             </div>
-            <ScoreBar value={r.mrr * 100} max={100} color="primary" />
+            <ScoreBar value={topMetric.score} max={100} color="primary" />
           </div>
         )}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span className="flex items-center gap-1">
-                <BarChart3 className="w-3 h-3" /> {r.mrr !== undefined ? "Recall@5" : "Retrieval Accuracy"}
-              </span>
-              <span className="font-bold text-foreground">
-                {((r.recall_at_5 ?? r.retrieval_accuracy) * 100).toFixed(1)}%
-              </span>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {secondaryMetrics.map((metric) => (
+            <div key={metric.label}>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span className="flex items-center gap-1">
+                  <BarChart3 className="w-3 h-3" /> {metric.label}
+                </span>
+                <span className="font-bold text-foreground">{metric.value}</span>
+              </div>
+              <ScoreBar value={metric.score} max={100} color={metric.color} />
             </div>
-            <ScoreBar value={(r.recall_at_5 ?? r.retrieval_accuracy) * 100} max={100} color="accent" />
-          </div>
-          <div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-1">
-              <span className="flex items-center gap-1">
-                <BarChart3 className="w-3 h-3" /> Relevance
-              </span>
-              <span className="font-bold text-foreground">
-                {r.relevance_score}/10
-              </span>
-            </div>
-            <ScoreBar value={relevancePct} max={100} color="warning" />
-          </div>
+          ))}
         </div>
         <div className="flex justify-between text-xs pt-1">
           <span className="flex items-center gap-1 text-muted-foreground">
@@ -605,9 +632,8 @@ const Results = () => {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* ── Left: model cards ── */}
-          <div className="lg:col-span-2 space-y-4">
+        <div className="space-y-6">
+          <div>
             <h2 className="text-xl font-bold mb-2">
               Per-Model Results
               {sorted.length > 0 && (
@@ -616,45 +642,10 @@ const Results = () => {
                 </span>
               )}
             </h2>
-
-            {sorted.map((r, idx) => (
-              <ModelCard
-                key={r.model}
-                r={r}
-                rank={idx + 1}
-                isBest={r.model === bestModelName}
-              />
-            ))}
-
-            {/* Failed models */}
-            {failed.length > 0 && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
-                <div className="flex items-center gap-2 mb-3 text-destructive font-semibold">
-                  <AlertCircle className="w-4 h-4" />
-                  {failed.length} model(s) failed
-                </div>
-                {failed.map((r, i) => (
-                  <div key={i} className="text-sm text-muted-foreground">
-                    <span className="font-mono font-medium text-foreground">
-                      {r.model}
-                    </span>
-                    : {r.error}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {results.length === 0 && (
-              <Card className="p-8 text-center text-muted-foreground">
-                No results available yet.
-              </Card>
-            )}
           </div>
 
-          {/* ── Right: comparison chart + summary table ── */}
-          <div className="space-y-6">
-            {/* Horizontal bar chart */}
-            {sorted.length > 0 && (
+          {sorted.length > 0 && (
+            <div className="grid xl:grid-cols-2 gap-6">
               <Card className="p-6 shadow-elevation">
                 <h3 className="text-base font-bold mb-4 flex items-center gap-2">
                   <BarChart3 className="w-4 h-4 text-primary" />
@@ -662,10 +653,7 @@ const Results = () => {
                 </h3>
                 <ComparisonChart results={results} compositeByModel={compositeByModel} />
               </Card>
-            )}
 
-            {/* Summary table */}
-            {sorted.length > 0 && (
               <Card className="p-6 shadow-elevation overflow-x-auto">
                 <h3 className="text-base font-bold mb-4 flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-accent" />
@@ -719,8 +707,41 @@ const Results = () => {
                   </tbody>
                 </table>
               </Card>
-            )}
-          </div>
+            </div>
+          )}
+
+          {sorted.map((r, idx) => (
+            <ModelCard
+              key={r.model}
+              r={r}
+              rank={idx + 1}
+              isBest={r.model === bestModelName}
+            />
+          ))}
+
+          {/* Failed models */}
+          {failed.length > 0 && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5">
+              <div className="flex items-center gap-2 mb-3 text-destructive font-semibold">
+                <AlertCircle className="w-4 h-4" />
+                {failed.length} model(s) failed
+              </div>
+              {failed.map((r, i) => (
+                <div key={i} className="text-sm text-muted-foreground">
+                  <span className="font-mono font-medium text-foreground">
+                    {r.model}
+                  </span>
+                  : {r.error}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {results.length === 0 && (
+            <Card className="p-8 text-center text-muted-foreground">
+              No results available yet.
+            </Card>
+          )}
         </div>
 
         {/* ── Actions ── */}
