@@ -22,13 +22,13 @@ const Constraints = () => {
   const hasDataset = Boolean(blobName);
   const initialConstraints = parseConstraintsFromParams(searchParams);
 
-  const [maxSize, setMaxSize] = useState([initialConstraints.maxSize]); // MB
-  const [maxCost, setMaxCost] = useState([initialConstraints.maxCost]); // $/million tokens
-  const [minPerformance, setMinPerformance] = useState([initialConstraints.minPerformance]); // percentage
+  const [maxDimensions, setMaxDimensions] = useState([initialConstraints.maxDimensions]);
+  const [maxCost, setMaxCost] = useState([initialConstraints.maxCost]);
+  const [minPerformance, setMinPerformance] = useState([initialConstraints.minPerformance]);
 
   const matchingModels = availableModels.filter((model) =>
     modelMatchesConstraints(model, {
-      maxSize: maxSize[0],
+      maxDimensions: maxDimensions[0],
       maxCost: maxCost[0],
       minPerformance: minPerformance[0],
     }),
@@ -41,7 +41,7 @@ const Constraints = () => {
     params.set("dataset_type", datasetType);
     params.set("filename", filename);
   }
-  params.set("max_size", String(maxSize[0]));
+  params.set("max_dimensions", String(maxDimensions[0]));
   params.set("max_cost", String(maxCost[0]));
   params.set("min_performance", String(minPerformance[0]));
   const leaderboardUrl = `/leaderboard?${params.toString()}`;
@@ -94,7 +94,7 @@ const Constraints = () => {
           </Card>
         )}
 
-        {/* Model Size Constraint */}
+        {/* Embedding Dimensions Constraint */}
         <Card className="p-8 mb-6 shadow-elevation">
           <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
             <div className="flex items-start gap-4 flex-1">
@@ -102,44 +102,44 @@ const Constraints = () => {
                 <HardDrive className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <h2 className="text-2xl font-semibold mb-2">Maximum Model Size</h2>
+                <h2 className="text-2xl font-semibold mb-2">Maximum Dimensions</h2>
                 <p className="text-muted-foreground">
-                  Limit model size based on your deployment constraints
+                  Limit embedding vector size — directly affects storage cost per vector
                 </p>
               </div>
             </div>
             <Badge variant="secondary" className="text-lg px-4 py-2 self-start">
-              {maxSize[0]} MB
+              {maxDimensions[0]}
             </Badge>
           </div>
 
           <div className="space-y-6">
             <div>
               <Slider
-                value={maxSize}
-                onValueChange={setMaxSize}
-                min={50}
-                max={2000}
-                step={50}
+                value={maxDimensions}
+                onValueChange={setMaxDimensions}
+                min={128}
+                max={4096}
+                step={128}
                 className="mb-4"
               />
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>50 MB</span>
-                <span>2,000 MB</span>
+                <span>128</span>
+                <span>4,096</span>
               </div>
             </div>
 
             <div className="grid grid-cols-4 gap-3">
               {[
-                { label: "Tiny", value: 100 },
-                { label: "Small", value: 300 },
-                { label: "Medium", value: 500 },
-                { label: "Large", value: 1000 },
+                { label: "Small", value: 384 },
+                { label: "Medium", value: 768 },
+                { label: "Large", value: 1536 },
+                { label: "Max", value: 4096 },
               ].map((preset) => (
                 <Button
                   key={preset.label}
-                  variant={maxSize[0] === preset.value ? "default" : "outline"}
-                  onClick={() => setMaxSize([preset.value])}
+                  variant={maxDimensions[0] === preset.value ? "default" : "outline"}
+                  onClick={() => setMaxDimensions([preset.value])}
                   size="sm"
                 >
                   {preset.label}
@@ -159,12 +159,12 @@ const Constraints = () => {
               <div>
                 <h2 className="text-2xl font-semibold mb-2">Maximum Cost</h2>
                 <p className="text-muted-foreground">
-                  Set your budget for inference costs per million tokens
+                  Cost per million tokens (open-source models are free)
                 </p>
               </div>
             </div>
             <Badge variant="secondary" className="text-lg px-4 py-2 self-start">
-              ${maxCost[0]}/M
+              {maxCost[0] === 0 ? "Free only" : `≤ $${maxCost[0].toFixed(2)}/M`}
             </Badge>
           </div>
 
@@ -173,25 +173,32 @@ const Constraints = () => {
               <Slider
                 value={maxCost}
                 onValueChange={setMaxCost}
-                min={1}
-                max={50}
-                step={1}
+                min={0}
+                max={0.15}
+                step={0.01}
                 className="mb-4"
               />
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>$1/M tokens</span>
-                <span>$50/M tokens</span>
+                <span>Free only</span>
+                <span>$0.15/M tokens</span>
               </div>
             </div>
 
-            <div className="p-4 bg-muted/30 rounded-lg">
-              <div className="text-sm font-medium mb-2">Estimated Monthly Cost</div>
-              <div className="text-2xl font-bold text-accent">
-                ${(maxCost[0] * 10).toFixed(2)}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Based on 10M tokens/month average usage
-              </p>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "Free only", value: 0 },
+                { label: "≤ $0.10/M", value: 0.10 },
+                { label: "Any cost", value: 0.15 },
+              ].map((preset) => (
+                <Button
+                  key={preset.label}
+                  variant={maxCost[0] === preset.value ? "default" : "outline"}
+                  onClick={() => setMaxCost([preset.value])}
+                  size="sm"
+                >
+                  {preset.label}
+                </Button>
+              ))}
             </div>
           </div>
         </Card>
@@ -263,8 +270,8 @@ const Constraints = () => {
             <div className="text-left sm:text-right">
               <div className="text-sm text-muted-foreground mb-2">Your Constraints</div>
               <div className="space-y-1 text-sm">
-                <div>Size: ≤ {maxSize[0]} MB</div>
-                <div>Cost: ≤ ${maxCost[0]}/M</div>
+                <div>Dimensions: ≤ {maxDimensions[0]}</div>
+                <div>Cost: {maxCost[0] === 0 ? "Free only" : `≤ $${maxCost[0].toFixed(2)}/M`}</div>
                 <div>Performance: ≥ {minPerformance[0]}%</div>
               </div>
             </div>

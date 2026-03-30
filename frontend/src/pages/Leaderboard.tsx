@@ -48,7 +48,7 @@ const Leaderboard = () => {
 
   const [models] = useState<Model[]>(availableModels);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortBy, setSortBy] = useState<"score" | "size" | "cost">("score");
+  const [sortBy, setSortBy] = useState<"score" | "dimensions">("score");
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [isStarting, setIsStarting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -63,10 +63,8 @@ const Leaderboard = () => {
       switch (sortBy) {
         case "score":
           return b.mtebScore - a.mtebScore;
-        case "size":
-          return a.size - b.size;
-        case "cost":
-          return a.cost - b.cost;
+        case "dimensions":
+          return a.dimensions - b.dimensions;
         default:
           return 0;
       }
@@ -88,8 +86,7 @@ const Leaderboard = () => {
       [...constraintMatchedModels]
         .sort((a, b) => {
           if (b.mtebScore !== a.mtebScore) return b.mtebScore - a.mtebScore;
-          if (a.cost !== b.cost) return a.cost - b.cost;
-          return a.size - b.size;
+          return a.dimensions - b.dimensions;
         })
         .slice(0, 3),
     [constraintMatchedModels],
@@ -306,8 +303,7 @@ const Leaderboard = () => {
                 Active constraints
               </div>
               <div className="font-medium text-sm">
-                Size ≤ {constraints.maxSize} MB · Cost ≤ ${constraints.maxCost}
-                /M · Performance ≥ {constraints.minPerformance}%
+                Dimensions ≤ {constraints.maxDimensions} · Cost {constraints.maxCost === 0 ? "Free only" : `≤ $${constraints.maxCost.toFixed(2)}/M`} · Performance ≥ {constraints.minPerformance}%
               </div>
             </div>
             <div className="text-left sm:text-right">
@@ -337,7 +333,7 @@ const Leaderboard = () => {
             <Select
               value={sortBy}
               onValueChange={(v: string) =>
-                setSortBy(v as "score" | "size" | "cost")
+                setSortBy(v as "score" | "dimensions")
               }
             >
               <SelectTrigger className="w-[200px]">
@@ -346,8 +342,7 @@ const Leaderboard = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="score">Sort by Score</SelectItem>
-                <SelectItem value="size">Sort by Size</SelectItem>
-                <SelectItem value="cost">Sort by Cost</SelectItem>
+                <SelectItem value="dimensions">Sort by Dimensions</SelectItem>
               </SelectContent>
             </Select>
 
@@ -357,7 +352,7 @@ const Leaderboard = () => {
                 Select Recommended ({recommendedModels.length})
               </Button>
               <Button variant="outline" size="sm" onClick={selectAll}>
-                Select visible
+                Select all
               </Button>
               <Button
                 variant="outline"
@@ -463,18 +458,28 @@ const Leaderboard = () => {
                         </div>
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
-                            Size
+                            Dimensions
                           </div>
                           <div className="text-lg font-semibold">
-                            {model.size} MB
+                            {model.dimensions}
                           </div>
                         </div>
+                        {model.size !== null && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Model Size
+                            </div>
+                            <div className="text-lg font-semibold">
+                              {model.size} MB
+                            </div>
+                          </div>
+                        )}
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
                             Cost
                           </div>
                           <div className="text-lg font-semibold text-accent">
-                            {model.cost === 0 ? "Free" : `$${model.cost}/M`}
+                            {model.costPerMTokens === 0 ? "Free" : `$${model.costPerMTokens}/M`}
                           </div>
                         </div>
                       </div>
